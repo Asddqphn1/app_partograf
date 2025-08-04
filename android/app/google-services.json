@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "614365068749",
+    "project_id": "partograf-3a1a7",
+    "storage_bucket": "partograf-3a1a7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:614365068749:android:6ec6e2ba6b2368af30d884",
+        "android_client_info": {
+          "package_name": "com.example.partograf"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDku8KppZHqBuoGMBX1SxoMDk5fSt5tvEY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
