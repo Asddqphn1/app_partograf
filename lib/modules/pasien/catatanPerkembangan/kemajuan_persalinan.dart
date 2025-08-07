@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:partograf/modules/pasien/partograft_pasien/grapic.dart';
 
 class CatatanServiks {
   final DateTime jamPemeriksaan;
@@ -168,7 +169,7 @@ class _KemajuanPersalinanScreenState extends State<KemajuanPersalinan> with Sing
                   }
                 }
 
-                return _buildDataList(catatanList);
+                return PartografScreen(catatanServiks: catatanList);
               },
             ),
           ),
