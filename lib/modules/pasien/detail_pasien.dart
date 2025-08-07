@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:partograf/modules/home/home.dart';
 import 'package:partograf/modules/pasien/catatanPerkembangan/kemajuan_persalinan.dart';
@@ -7,11 +8,15 @@ import 'package:partograf/modules/pasien/catatanPerkembangan/obat_dan_cairan.dar
 import 'package:partograf/modules/pasien/catatanPerkembangan/pemantauan_kala_IV.dart ';
 
 class DetailPasien extends StatelessWidget {
-  const DetailPasien({super.key});
+
+  String pasienId;
+  String userId;
+  DetailPasien({super.key, required this.pasienId, required this.userId});
 
   @override
   Widget build(BuildContext context) {
-    // Data untuk list menu, bisa juga diambil dari model atau API
+
+
     final List<Map<String, dynamic>> menuItems = [
       {
         'title': 'Kemajuan Persalinan',
@@ -76,7 +81,7 @@ class DetailPasien extends StatelessWidget {
 
               switch (title) {
                 case 'Kemajuan Persalinan':
-                  destinationPage = const KemajuanPersalinan();
+                  destinationPage = KemajuanPersalinan(userId: userId, pasienId: pasienId,);
                   break;
                 case 'Kondisi Ibu':
                   destinationPage = const KondisiIbu();
@@ -91,7 +96,7 @@ class DetailPasien extends StatelessWidget {
                   destinationPage = const PemantauanKalaIv();
                   break;
                 default:
-                  destinationPage = const Home();
+                  destinationPage = Home();
               }
 
               Navigator.push(

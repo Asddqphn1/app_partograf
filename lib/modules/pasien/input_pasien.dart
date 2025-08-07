@@ -107,12 +107,11 @@ class _InputPasienState extends State<InputPasien> {
       backgroundColor: Color(0xFFE9E9E9),
       appBar: AppBar(
         title: const Text('Input Data Pasien'),
-        backgroundColor: Color(0xFFE9E9E9),
         foregroundColor: Colors.white,
         flexibleSpace: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF001BB7), Color(0xFF7B1FA2)], // Biru Royal ke Ungu Tua
+              colors: [Color(0xFFF8ABEB), Color(0xFFEEF1DD)], // Biru Royal ke Ungu Tua
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -168,9 +167,9 @@ class _InputPasienState extends State<InputPasien> {
                   const Text('Apakah Ketuban Pecah?', style: TextStyle(fontSize: 16)),
                   const SizedBox(height: 8),
                   Row(children: [
-                    Expanded(child: OutlinedButton(onPressed: () { setState(() { _isKetubanPecah = true; }); state.didChange(true);}, style: OutlinedButton.styleFrom(backgroundColor: state.value == true ? Colors.purple.withOpacity(0.1) : null, side: BorderSide(color: state.value == true ? Colors.purple : Colors.grey)), child: const Text('Ya'))),
+                    Expanded(child: OutlinedButton(onPressed: () { setState(() { _isKetubanPecah = true; }); state.didChange(true);}, style: OutlinedButton.styleFrom(backgroundColor: state.value == true ? Colors.green : Colors.grey, side: BorderSide(color: state.value == true ? Colors.green : Colors.grey)), child: const Text('Ya', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),),
                     const SizedBox(width: 16),
-                    Expanded(child: OutlinedButton(onPressed: () { setState(() { _isKetubanPecah = false; _selectedDateTimeKetubanPecah = null; _jamKetubanPecahController.clear(); }); state.didChange(false);}, style: OutlinedButton.styleFrom(backgroundColor: state.value == false ? Colors.purple.withOpacity(0.1) : null, side: BorderSide(color: state.value == false ? Colors.purple : Colors.grey)), child: const Text('Tidak'))),
+                    Expanded(child: OutlinedButton(onPressed: () { setState(() { _isKetubanPecah = false; _selectedDateTimeKetubanPecah = null; _jamKetubanPecahController.clear(); }); state.didChange(false);}, style: OutlinedButton.styleFrom(backgroundColor: state.value == false ? Colors.red : Colors.grey, side: BorderSide(color: state.value == false ? Colors.red : Colors.grey)), child: const Text('Tidak', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),),
                   ]),
                   if (state.hasError) Padding(padding: const EdgeInsets.only(top: 8.0, left: 12.0), child: Text(state.errorText!, style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 12))),
                 ]);
@@ -218,7 +217,7 @@ class _InputPasienState extends State<InputPasien> {
 
             ElevatedButton(
               onPressed: _isLoading ? null : _simpanData,
-              style: ElevatedButton.styleFrom(backgroundColor:Color(0xFF0046FF), padding: const EdgeInsets.symmetric(vertical: 16.0), textStyle: const TextStyle(fontSize: 18)),
+              style: ElevatedButton.styleFrom(backgroundColor:Color(0xFF192A56), padding: const EdgeInsets.symmetric(vertical: 16.0), textStyle: const TextStyle(fontSize: 18)),
               child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text('Simpan Data', style: TextStyle(color: Colors.white))
             ),
           ],
