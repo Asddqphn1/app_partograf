@@ -2,21 +2,18 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:partograf/modules/home/home.dart';
 import 'package:partograf/modules/pasien/catatanPerkembangan/kemajuan_persalinan.dart';
-import 'package:partograf/modules/pasien/catatanPerkembangan/kondisi_ibu.dart';
+import 'package:partograf/modules/pasien/catatanPerkembangan/kondisiibu/kondisi_ibu.dart';
 import 'package:partograf/modules/pasien/catatanPerkembangan/kondisi_janin.dart';
 import 'package:partograf/modules/pasien/catatanPerkembangan/obat_dan_cairan.dart';
 import 'package:partograf/modules/pasien/catatanPerkembangan/pemantauan_kala_IV.dart ';
 
 class DetailPasien extends StatelessWidget {
-
   String pasienId;
   String userId;
   DetailPasien({super.key, required this.pasienId, required this.userId});
 
   @override
   Widget build(BuildContext context) {
-
-
     final List<Map<String, dynamic>> menuItems = [
       {
         'title': 'Kemajuan Persalinan',
@@ -81,7 +78,10 @@ class DetailPasien extends StatelessWidget {
 
               switch (title) {
                 case 'Kemajuan Persalinan':
-                  destinationPage = KemajuanPersalinan(userId: userId, pasienId: pasienId,);
+                  destinationPage = KemajuanPersalinan(
+                    userId: userId,
+                    pasienId: pasienId,
+                  );
                   break;
                 case 'Kondisi Ibu':
                   destinationPage = const KondisiIbu();
