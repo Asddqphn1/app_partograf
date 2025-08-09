@@ -4,8 +4,8 @@ import 'package:partograf/modules/home/home.dart';
 import 'package:partograf/modules/pasien/catatanPerkembangan/kemajuan_persalinan.dart';
 import 'package:partograf/modules/pasien/catatanPerkembangan/kondisiibu/kondisi_ibu.dart';
 import 'package:partograf/modules/pasien/catatanPerkembangan/kondisi_janin.dart';
-import 'package:partograf/modules/pasien/catatanPerkembangan/obat_dan_cairan.dart';
-import 'package:partograf/modules/pasien/catatanPerkembangan/pemantauan_kala_IV.dart ';
+import 'package:partograf/modules/pasien/catatanPerkembangan/obatDanCairan/obat_dan_cairan.dart';
+import 'package:partograf/modules/pasien/catatanPerkembangan/pemantauanKalaIV/pemantauan_kala_IV.dart ';
 
 class DetailPasien extends StatelessWidget {
   String pasienId;

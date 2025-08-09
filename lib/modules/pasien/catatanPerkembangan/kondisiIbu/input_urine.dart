@@ -1,7 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-
 import 'package:partograf/gradient_app_bar.dart';
 
 class InputUrine extends StatefulWidget {
@@ -65,8 +64,8 @@ class _InputUrineState extends State<InputUrine> {
       setState(() => _isLoading = true);
       final newUrineData = {
         'jam_pemeriksaan': Timestamp.fromDate(_selectedJamPemeriksaan!),
-        'aseton': int.tryParse(_asetonController.text) ?? 0,
-        'protein': int.tryParse(_proteinController.text) ?? 0,
+        'aseton': _asetonController.text,
+        'protein': _proteinController.text,
         'volume': int.tryParse(_volumeController.text) ?? 0,
       };
 
@@ -81,10 +80,15 @@ class _InputUrineState extends State<InputUrine> {
           Navigator.pop(context);
         }
       } catch (e) {
-        setState(() => _isLoading = false);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Gagal menyimpan data: $e')));
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Gagal menyimpan data: $e')));
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
       }
     }
   }
@@ -92,74 +96,125 @@ class _InputUrineState extends State<InputUrine> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const GradientAppBar(title: 'Tambah Data Suhu'),
+      appBar: const GradientAppBar(title: 'Tambah Data Urine'),
+      backgroundColor: Colors.white,
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
         child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // PERUBAIKAN: Urutan diubah, jam di atas
-              TextFormField(
+              _buildTextField(
                 controller: _jamPemeriksaanController,
+                label: 'Jam Pemeriksaan',
+                hint: 'Pilih waktu',
+                icon: Icons.calendar_today,
                 readOnly: true,
-                decoration: const InputDecoration(
-                  labelText: 'Jam Pemeriksaan',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.calendar_today),
-                ),
                 onTap: () => _pilihWaktu(context),
-                validator: (value) => value == null || value.isEmpty
-                    ? 'Pilih waktu pemeriksaan'
-                    : null,
               ),
               const SizedBox(height: 16),
-              TextFormField(
-                controller: _asetonController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Aseton',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (v) => v == null || v.isEmpty ? 'Wajib diisi' : null,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _proteinController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Protein',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (v) => v == null || v.isEmpty ? 'Wajib diisi' : null,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
+              _buildTextField(
                 controller: _volumeController,
+                label: 'Volume (ml)',
+                hint: 'cth: 100',
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Volume (ml)',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (v) => v == null || v.isEmpty ? 'Wajib diisi' : null,
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
+              _buildTextField(
+                controller: _proteinController,
+                label: 'Protein',
+                hint: 'cth: Negatif atau +1',
+              ),
+              const SizedBox(height: 16),
+              _buildTextField(
+                controller: _asetonController,
+                label: 'Aseton',
+                hint: 'cth: Negatif atau +1',
+              ),
+              const SizedBox(height: 32),
               ElevatedButton(
                 onPressed: _isLoading ? null : _simpanData,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFC2185B), // Pink lebih gelap
+                  backgroundColor: const Color(0xFFC2185B),
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 5,
                 ),
                 child: _isLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text('Simpan'),
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 3,
+                        ),
+                      )
+                    : const Text(
+                        'Simpan Data',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    String? hint,
+    IconData? icon,
+    bool readOnly = false,
+    VoidCallback? onTap,
+    TextInputType? keyboardType,
+  }) {
+    return TextFormField(
+      controller: controller,
+      readOnly: readOnly,
+      onTap: onTap,
+      keyboardType: keyboardType,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        prefixIcon: icon != null
+            ? Icon(icon, color: Colors.grey.shade600)
+            : null,
+        contentPadding: const EdgeInsets.symmetric(
+          vertical: 16.0,
+          horizontal: 12.0,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12.0),
+          borderSide: BorderSide(color: Colors.grey.shade300, width: 1.5),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12.0),
+          borderSide: const BorderSide(color: Color(0xFFC2185B), width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12.0),
+          borderSide: BorderSide(color: Colors.red.shade700, width: 1.5),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12.0),
+          borderSide: BorderSide(color: Colors.red.shade700, width: 2),
+        ),
+      ),
+      validator: (value) {
+        if (value == null || value.isEmpty) {
+          return '$label wajib diisi';
+        }
+        return null;
+      },
     );
   }
 }

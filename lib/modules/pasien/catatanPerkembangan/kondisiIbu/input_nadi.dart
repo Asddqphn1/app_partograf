@@ -1,7 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-
 import 'package:partograf/gradient_app_bar.dart';
 
 class InputNadi extends StatefulWidget {
@@ -91,10 +90,15 @@ class _InputNadiState extends State<InputNadi> {
           Navigator.pop(context);
         }
       } catch (e) {
-        setState(() => _isLoading = false);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Gagal menyimpan data: $e')));
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Gagal menyimpan data: $e')));
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
       }
     }
   }
@@ -103,70 +107,122 @@ class _InputNadiState extends State<InputNadi> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: const GradientAppBar(title: 'Tambah Data Nadi'),
-
+      backgroundColor: Colors.white,
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
         child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              TextFormField(
+              _buildTextField(
                 controller: _jamPemeriksaanController,
+                label: 'Jam Pemeriksaan',
+                hint: 'Pilih waktu mulai',
+                icon: Icons.calendar_today,
                 readOnly: true,
-                decoration: const InputDecoration(
-                  labelText: 'Jam Pemeriksaan',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.calendar_today),
-                ),
                 onTap: () => _pilihWaktu(context, isPemeriksaan: true),
-                validator: (value) => value == null || value.isEmpty
-                    ? 'Pilih waktu pemeriksaan'
-                    : null,
               ),
               const SizedBox(height: 16),
-              TextFormField(
+              _buildTextField(
                 controller: _jamSelesaiController,
+                label: 'Jam Selesai',
+                hint: 'Pilih waktu selesai',
+                icon: Icons.calendar_today,
                 readOnly: true,
-                decoration: const InputDecoration(
-                  labelText: 'Jam Selesai',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.calendar_today),
-                ),
                 onTap: () => _pilihWaktu(context, isPemeriksaan: false),
-                validator: (value) => value == null || value.isEmpty
-                    ? 'Pilih waktu selesai'
-                    : null,
               ),
               const SizedBox(height: 16),
-              TextFormField(
+              _buildTextField(
                 controller: _bpmController,
+                label: 'Hasil Nadi (BPM)',
+                hint: 'cth: 80',
+                icon: Icons.monitor_heart_outlined,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Hasil BPM',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.monitor_heart_outlined),
-                ),
-                validator: (value) => value == null || value.isEmpty
-                    ? 'Tidak boleh kosong'
-                    : null,
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 32),
               ElevatedButton(
                 onPressed: _isLoading ? null : _simpanData,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFC2185B), // Pink lebih gelap
+                  backgroundColor: const Color(0xFFC2185B),
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                 ),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 5,
+                ),
                 child: _isLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text('Simpan'),
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 3,
+                        ),
+                      )
+                    : const Text(
+                        'Simpan Data',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    String? hint,
+    IconData? icon,
+    bool readOnly = false,
+    VoidCallback? onTap,
+    TextInputType? keyboardType,
+  }) {
+    return TextFormField(
+      controller: controller,
+      readOnly: readOnly,
+      onTap: onTap,
+      keyboardType: keyboardType,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        prefixIcon: icon != null
+            ? Icon(icon, color: Colors.grey.shade600)
+            : null,
+        contentPadding: const EdgeInsets.symmetric(
+          vertical: 16.0,
+          horizontal: 12.0,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12.0),
+          borderSide: BorderSide(color: Colors.grey.shade300, width: 1.5),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12.0),
+          borderSide: const BorderSide(color: Color(0xFFC2185B), width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12.0),
+          borderSide: BorderSide(color: Colors.red.shade700, width: 1.5),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12.0),
+          borderSide: BorderSide(color: Colors.red.shade700, width: 2),
+        ),
+      ),
+      validator: (value) {
+        if (value == null || value.isEmpty) {
+          return '$label wajib diisi';
+        }
+        return null;
+      },
     );
   }
 }

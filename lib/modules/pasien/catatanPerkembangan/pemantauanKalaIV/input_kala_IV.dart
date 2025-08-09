@@ -3,28 +3,40 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:partograf/gradient_app_bar.dart';
 
-class InputTd extends StatefulWidget {
+class InputKalaIv extends StatefulWidget {
   final DocumentReference docRef;
-  const InputTd({super.key, required this.docRef});
+  const InputKalaIv({super.key, required this.docRef});
 
   @override
-  State<InputTd> createState() => _InputTdState();
+  State<InputKalaIv> createState() => _InputKalaIvState();
 }
 
-class _InputTdState extends State<InputTd> {
+class _InputKalaIvState extends State<InputKalaIv> {
   final _formKey = GlobalKey<FormState>();
+  bool _isLoading = false;
+  DateTime? _selectedJamPemeriksaan;
+
+  final _jamPemeriksaanController = TextEditingController();
   final _sistolikController = TextEditingController();
   final _diastolikController = TextEditingController();
-  final _jamPemeriksaanController = TextEditingController();
-
-  DateTime? _selectedJamPemeriksaan;
-  bool _isLoading = false;
+  final _tinggiFundusController = TextEditingController();
+  final _kontraksiController = TextEditingController();
+  final _nadiController = TextEditingController();
+  final _suhuController = TextEditingController();
+  final _darahKeluarController = TextEditingController();
+  final _urineController = TextEditingController();
 
   @override
   void dispose() {
+    _jamPemeriksaanController.dispose();
     _sistolikController.dispose();
     _diastolikController.dispose();
-    _jamPemeriksaanController.dispose();
+    _tinggiFundusController.dispose();
+    _kontraksiController.dispose();
+    _nadiController.dispose();
+    _suhuController.dispose();
+    _darahKeluarController.dispose();
+    _urineController.dispose();
     super.dispose();
   }
 
@@ -53,6 +65,7 @@ class _InputTdState extends State<InputTd> {
       );
       _jamPemeriksaanController.text = DateFormat(
         'dd MMM yyyy, HH:mm',
+        'id_ID',
       ).format(_selectedJamPemeriksaan!);
     });
   }
@@ -60,23 +73,29 @@ class _InputTdState extends State<InputTd> {
   Future<void> _simpanData() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
-      final newTDData = {
-        'jam-pemeriksaan': Timestamp.fromDate(_selectedJamPemeriksaan!),
-        'tekanan': {
+
+      final newKalaIVEntry = {
+        'jam_pemeriksaan': Timestamp.fromDate(_selectedJamPemeriksaan!),
+        'tekanan_darah': {
           'sistolik': int.tryParse(_sistolikController.text) ?? 0,
           'diastolik': int.tryParse(_diastolikController.text) ?? 0,
         },
+        'tinggi_fundus_uteri': int.tryParse(_tinggiFundusController.text) ?? 0,
+        'kontraksi_uterus': int.tryParse(_kontraksiController.text) ?? 0,
+        'nadi': int.tryParse(_nadiController.text) ?? 0,
+        'suhu': double.tryParse(_suhuController.text) ?? 0.0,
+        'jumlah_darah_keluar': int.tryParse(_darahKeluarController.text) ?? 0,
+        'jumlah_urin': int.tryParse(_urineController.text) ?? 0,
       };
 
       try {
         await widget.docRef.update({
-          'tekanan_darah': FieldValue.arrayUnion([newTDData]),
+          'kala_IV': FieldValue.arrayUnion([newKalaIVEntry]),
         });
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Data Tekanan Darah berhasil disimpan!'),
-            ),
+            const SnackBar(content: Text('Data berhasil disimpan!')),
           );
           Navigator.pop(context);
         }
@@ -97,7 +116,7 @@ class _InputTdState extends State<InputTd> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const GradientAppBar(title: 'Tambah Data Tekanan Darah'),
+      appBar: const GradientAppBar(title: 'Input Pemantauan Kala IV'),
       backgroundColor: Colors.white,
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
@@ -115,6 +134,7 @@ class _InputTdState extends State<InputTd> {
                 onTap: () => _pilihWaktu(context),
               ),
               const SizedBox(height: 16),
+
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -152,7 +172,53 @@ class _InputTdState extends State<InputTd> {
                   ),
                 ],
               ),
+              const SizedBox(height: 16),
+              _buildTextField(
+                controller: _nadiController,
+                label: 'Nadi',
+                hint: 'kali/menit',
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 16),
+              _buildTextField(
+                controller: _suhuController,
+                label: 'Suhu',
+                hint: '°C',
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+              ),
+              const SizedBox(height: 16),
+              _buildTextField(
+                controller: _tinggiFundusController,
+                label: 'Tinggi Fundus Uteri',
+                hint: 'cm',
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 16),
+              _buildTextField(
+                controller: _kontraksiController,
+                label: 'Kontraksi Uterus',
+                hint: 'jumlah dalam 10 menit',
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 16),
+              _buildTextField(
+                controller: _darahKeluarController,
+                label: 'Pendarahan',
+                hint: 'cc',
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 16),
+              _buildTextField(
+                controller: _urineController,
+                label: 'Jumlah Urine',
+                hint: 'cc',
+                keyboardType: TextInputType.number,
+              ),
+
               const SizedBox(height: 32),
+
               ElevatedButton(
                 onPressed: _isLoading ? null : _simpanData,
                 style: ElevatedButton.styleFrom(
@@ -165,13 +231,9 @@ class _InputTdState extends State<InputTd> {
                   elevation: 5,
                 ),
                 child: _isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 3,
-                        ),
+                    ? const CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 3,
                       )
                     : const Text(
                         'Simpan Data',
@@ -202,6 +264,7 @@ class _InputTdState extends State<InputTd> {
       readOnly: readOnly,
       onTap: onTap,
       keyboardType: keyboardType,
+
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,

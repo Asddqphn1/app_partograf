@@ -9,7 +9,6 @@ class GradientAppBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context) {
     return AppBar(
-      // Mengatur style AppBar agar sama persis dengan halaman utama
       foregroundColor: Colors.black87,
       elevation: 4,
       systemOverlayStyle: const SystemUiOverlayStyle(
@@ -17,21 +16,14 @@ class GradientAppBar extends StatelessWidget implements PreferredSizeWidget {
       ),
       title: Text(
         title,
-        style: const TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: 22,
-        ),
+        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
       ),
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          bottom: Radius.circular(30),
-        ),
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
       ),
       flexibleSpace: Container(
         decoration: const BoxDecoration(
-          borderRadius: BorderRadius.vertical(
-            bottom: Radius.circular(30),
-          ),
+          borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
           gradient: LinearGradient(
             colors: [Color(0xFFF8ABEB), Color(0xFFEEF1DD)],
             begin: Alignment.topCenter,
@@ -43,5 +35,6 @@ class GradientAppBar extends StatelessWidget implements PreferredSizeWidget {
   }
 
   @override
+  // Baris ini wajib ada untuk custom AppBar.
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
 }

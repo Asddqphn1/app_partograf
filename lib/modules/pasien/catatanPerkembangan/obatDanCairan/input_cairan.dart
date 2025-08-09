@@ -3,28 +3,28 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:partograf/gradient_app_bar.dart';
 
-class InputTd extends StatefulWidget {
+class InputCairan extends StatefulWidget {
   final DocumentReference docRef;
-  const InputTd({super.key, required this.docRef});
+  const InputCairan({super.key, required this.docRef});
 
   @override
-  State<InputTd> createState() => _InputTdState();
+  State<InputCairan> createState() => _InputCairanState();
 }
 
-class _InputTdState extends State<InputTd> {
+class _InputCairanState extends State<InputCairan> {
   final _formKey = GlobalKey<FormState>();
-  final _sistolikController = TextEditingController();
-  final _diastolikController = TextEditingController();
-  final _jamPemeriksaanController = TextEditingController();
+  final _namaController = TextEditingController();
+  final _totalTetesController = TextEditingController();
+  final _jamPemberianController = TextEditingController();
 
-  DateTime? _selectedJamPemeriksaan;
+  DateTime? _selectedJamPemberian;
   bool _isLoading = false;
 
   @override
   void dispose() {
-    _sistolikController.dispose();
-    _diastolikController.dispose();
-    _jamPemeriksaanController.dispose();
+    _namaController.dispose();
+    _totalTetesController.dispose();
+    _jamPemberianController.dispose();
     super.dispose();
   }
 
@@ -44,39 +44,37 @@ class _InputTdState extends State<InputTd> {
     if (pickedTime == null) return;
 
     setState(() {
-      _selectedJamPemeriksaan = DateTime(
+      _selectedJamPemberian = DateTime(
         pickedDate.year,
         pickedDate.month,
         pickedDate.day,
         pickedTime.hour,
         pickedTime.minute,
       );
-      _jamPemeriksaanController.text = DateFormat(
+      _jamPemberianController.text = DateFormat(
         'dd MMM yyyy, HH:mm',
-      ).format(_selectedJamPemeriksaan!);
+      ).format(_selectedJamPemberian!);
     });
   }
 
   Future<void> _simpanData() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
-      final newTDData = {
-        'jam-pemeriksaan': Timestamp.fromDate(_selectedJamPemeriksaan!),
-        'tekanan': {
-          'sistolik': int.tryParse(_sistolikController.text) ?? 0,
-          'diastolik': int.tryParse(_diastolikController.text) ?? 0,
-        },
+
+      final newCairanData = {
+        'jam-pemberian': Timestamp.fromDate(_selectedJamPemberian!),
+        'nama': _namaController.text,
+        'total-tetes': int.tryParse(_totalTetesController.text) ?? 0,
       };
 
       try {
         await widget.docRef.update({
-          'tekanan_darah': FieldValue.arrayUnion([newTDData]),
+          'cairan': FieldValue.arrayUnion([newCairanData]),
         });
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Data Tekanan Darah berhasil disimpan!'),
-            ),
+            const SnackBar(content: Text('Data Cairan berhasil disimpan!')),
           );
           Navigator.pop(context);
         }
@@ -97,7 +95,7 @@ class _InputTdState extends State<InputTd> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const GradientAppBar(title: 'Tambah Data Tekanan Darah'),
+      appBar: const GradientAppBar(title: 'Tambah Data Cairan'),
       backgroundColor: Colors.white,
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
@@ -107,50 +105,25 @@ class _InputTdState extends State<InputTd> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _buildTextField(
-                controller: _jamPemeriksaanController,
-                label: 'Jam Pemeriksaan',
+                controller: _jamPemberianController,
+                label: 'Jam Pemberian',
                 hint: 'Pilih waktu',
                 icon: Icons.calendar_today,
                 readOnly: true,
                 onTap: () => _pilihWaktu(context),
               ),
               const SizedBox(height: 16),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Padding(
-                    padding: EdgeInsets.only(left: 4.0, bottom: 8.0),
-                    child: Text(
-                      'Tekanan Darah (mmHg)',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFFC2185B),
-                      ),
-                    ),
-                  ),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildTextField(
-                          controller: _sistolikController,
-                          label: 'Sistolik',
-                          hint: 'cth: 120',
-                          keyboardType: TextInputType.number,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: _buildTextField(
-                          controller: _diastolikController,
-                          label: 'Diastolik',
-                          hint: 'cth: 80',
-                          keyboardType: TextInputType.number,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+              _buildTextField(
+                controller: _namaController,
+                label: 'Nama Cairan',
+                hint: 'cth: Ringer Laktat',
+              ),
+              const SizedBox(height: 16),
+              _buildTextField(
+                controller: _totalTetesController,
+                label: 'Tetesan per Menit',
+                hint: 'cth: 20',
+                keyboardType: TextInputType.number,
               ),
               const SizedBox(height: 32),
               ElevatedButton(

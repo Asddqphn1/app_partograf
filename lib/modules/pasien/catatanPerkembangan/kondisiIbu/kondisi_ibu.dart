@@ -4,10 +4,9 @@ import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:intl/intl.dart';
 
-// Import Halaman
+import 'package:partograf/modules/pasien/catatanPerkembangan/kondisiIbu/input_td.dart';
 import 'package:partograf/modules/pasien/catatanPerkembangan/kondisiibu/input_nadi.dart';
 import 'package:partograf/modules/pasien/catatanPerkembangan/kondisiibu/input_suhu.dart';
-import 'package:partograf/modules/pasien/catatanPerkembangan/kondisiibu/input_td.dart';
 import 'package:partograf/modules/pasien/catatanPerkembangan/kondisiibu/input_urine.dart';
 
 class KondisiIbu extends StatefulWidget {
@@ -52,20 +51,17 @@ class _KondisiIbuState extends State<KondisiIbu>
           statusBarIconBrightness: Brightness.dark,
         ),
 
-        // PERUBAIKAN 1: Mengubah style judul
         title: const Text(
           "Kondisi Ibu",
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
         ),
 
-        // PERUBAIKAN 2: Menambahkan shape untuk border radius di bawah
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
         ),
 
         flexibleSpace: Container(
           decoration: const BoxDecoration(
-            // Border radius di sini harus sama dengan di 'shape' agar gradient terpotong dengan benar
             borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
             gradient: LinearGradient(
               colors: [Color(0xFFF8ABEB), Color(0xFFEEF1DD)],
@@ -213,7 +209,7 @@ class _KondisiIbuState extends State<KondisiIbu>
               icon: const FaIcon(FontAwesomeIcons.plus, size: 16),
               label: Text(buttonLabel),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFC2185B), // Pink lebih gelap
+                backgroundColor: const Color(0xFFC2185B),
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 shape: RoundedRectangleBorder(
