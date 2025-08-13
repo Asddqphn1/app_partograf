@@ -27,7 +27,7 @@ class WelcomeScreen extends StatelessWidget {
                   const Spacer(flex: 2),
                   // Judul Aplikasi
                   const Text(
-                    'Aplikasi Partograf?',
+                    'Aplikasi Partograf',
                     style: TextStyle(
                       color: Color(0xFF2C2C6A),
                       fontSize: 32,
