@@ -1,19 +1,24 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:intl/intl.dart';
+import 'package:partograf/modules/home/welcome_screen.dart';
+import 'package:partograf/modules/pasien/catatanPerkembangan/kemajuan_persalinan.dart';
 import 'package:partograf/modules/pasien/detail_pasien.dart';
 import 'package:partograf/modules/pasien/input_pasien.dart';
+import 'package:partograf/modules/pasien/partograft_pasien/grapic.dart';
 
 class Home extends StatefulWidget {
-  Home({super.key});
+  final String user;
+  Home({super.key, required this.user});
 
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
-
-  final String userId = 'QfAsyIkRTFuvNSy5YRaH';
 
   @override
   State<Home> createState() => _HomeState();
 }
+
 class _HomeState extends State<Home> {
   int _selectedIndex = 0;
 
@@ -23,96 +28,307 @@ class _HomeState extends State<Home> {
     });
   }
 
+  Future<void> _navigateToPartograf(String userId, String pasienId) async {
+    // Tampilkan dialog loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return const Dialog(
+          child: Padding(
+            padding: EdgeInsets.all(20.0),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(width: 20),
+                Text("Mengambil data partograf..."),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    try {
+      // Ambil data dari sub-collection 'catatan_serviks'
+      final snapshot = await FirebaseFirestore.instance
+          .collection('user')
+          .doc(widget.user)
+          .collection('pasien')
+          .doc(pasienId)
+          .collection(
+            'catatan_serviks',
+          ) // Pastikan nama sub-collection ini benar
+          .orderBy('jam_pemeriksaan')
+          .get();
+
+      // Ubah setiap dokumen menjadi objek CatatanServiks
+      final List<CatatanServiks> catatanList = snapshot.docs
+          .map((doc) => CatatanServiks.fromMap(doc.data()))
+          .toList();
+
+      if (mounted) Navigator.of(context).pop(); // Tutup dialog loading
+
+      // Navigasi ke halaman grafik dengan membawa data yang sudah diambil
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PartografView(dataPemeriksaan: catatanList),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) Navigator.of(context).pop(); // Tutup dialog loading
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Gagal mengambil data: $e")));
+    }
+  }
   @override
   Widget build(BuildContext context) {
-
-    DocumentReference userDoc = widget.firestore.collection('user').doc(widget.userId);
+    DocumentReference userDoc = widget.firestore
+        .collection('user')
+        .doc(widget.user);
 
     return FutureBuilder<DocumentSnapshot>(
       future: userDoc.get(),
-      builder: (BuildContext context, AsyncSnapshot<DocumentSnapshot> snapshot) {
-        // --- State Handling ---
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
+      builder:
+          (BuildContext context, AsyncSnapshot<DocumentSnapshot> snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Scaffold(
+                body: Center(child: CircularProgressIndicator()),
+              );
+            }
 
+            if (snapshot.hasError) {
+              return const Scaffold(
+                body: Center(child: Text('Gagal memuat data.')),
+              );
+            }
+
+            if (snapshot.hasData && snapshot.data!.exists) {
+              Map<String, dynamic> data =
+                  snapshot.data!.data() as Map<String, dynamic>;
+              String userName = data['nama'] ?? 'Bidan';
+              String userEmail = data['email'] ?? 'Tidak ada email';
+
+              final List<Widget> _pages = <Widget>[
+                // Page 0: Home Screen (navigates to DetailPasien)
+                Stack(
+                  children: [
+                    _buildHeader(userName, userEmail, context),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 220.0),
+                      child: _buildPatientList(
+                        onPatientTap: (userId, pasienId) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => DetailPasien(
+                                pasienId: pasienId,
+                                userId: userId,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    _buildSearchBar(),
+                  ],
+                ),
+
+                // Page 1: Partograf Screen
+                Scaffold(
+                  appBar: AppBar(
+                    title: const Text('Pilih Pasien untuk Partograf'),
+                    backgroundColor: const Color(0xFFF8ABEB),
+                    automaticallyImplyLeading: false,
+                  ),
+                  body: _buildPatientList(
+                    // PERUBAHAN DI SINI: Memanggil fungsi _navigateToPartograf
+                    onPatientTap: (userId, pasienId) {
+                      _navigateToPartograf(widget.user, pasienId);
+                    },
+                  ),
+                ),
+              ];
+
+              return Scaffold(
+                backgroundColor: const Color(0xFFF4F6F9),
+                body: _pages[_selectedIndex],
+                bottomNavigationBar: BottomNavigationBar(
+                  currentIndex: _selectedIndex,
+                  onTap: _onItemTapped,
+                  items: const [
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.home),
+                      label: 'Home',
+                    ),
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.graphic_eq),
+                      label: 'Partograf',
+                    ),
+                  ],
+                  type: BottomNavigationBarType.fixed,
+                  backgroundColor: Colors.white,
+                  selectedItemColor: Colors.blue,
+                  unselectedItemColor: Colors.grey,
+                ),
+                floatingActionButton: _selectedIndex == 0
+                    ? FloatingActionButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => InputPasien(userId: widget.user,),
+                            ),
+                          );
+                        },
+                        backgroundColor: const Color(0xFFF8ABEB),
+                        child: const Icon(
+                          Icons.add,
+                          size: 30,
+                          color: Colors.white,
+                        ),
+                      )
+                    : null,
+                floatingActionButtonLocation:
+                    FloatingActionButtonLocation.centerDocked,
+              );
+            }
+
+            return const Scaffold(
+              body: Center(child: Text('User tidak ditemukan.')),
+            );
+          },
+    );
+  }
+
+  Widget _buildPatientList({
+    required void Function(String userId, String pasienId) onPatientTap,
+  }) {
+    final Stream<QuerySnapshot> pasienStream = FirebaseFirestore.instance
+        .collection('user')
+        .doc(widget.user) // Ganti dengan ID user yang sesuai
+        .collection('pasien')
+        .snapshots();
+
+    return StreamBuilder<QuerySnapshot>(
+      stream: pasienStream,
+      builder: (BuildContext context, AsyncSnapshot<QuerySnapshot> snapshot) {
         if (snapshot.hasError) {
-          return const Scaffold(
-            body: Center(child: Text('Gagal memuat data.')),
-          );
+          return const Center(child: Text('Terjadi kesalahan.'));
+        }
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final documents = snapshot.data!.docs;
+        if (documents.isEmpty) {
+          return const Center(child: Text("Belum ada data pasien."));
         }
 
-        if (snapshot.hasData && snapshot.data!.exists) {
-          Map<String, dynamic> data = snapshot.data!.data() as Map<String, dynamic>;
-          String userName = data['nama'] ?? 'Bidan'; // Ambil nama user
+        return ListView.separated(
+          padding: _selectedIndex == 0
+              ? const EdgeInsets.fromLTRB(10, 20, 10, 20)
+              : const EdgeInsets.all(8.0),
+          itemCount: documents.length,
+          separatorBuilder: (context, index) => const Divider(
+            color: Color.fromARGB(255, 224, 224, 224),
+            thickness: 1,
+            indent: 20,
+            endIndent: 20,
+          ),
+          itemBuilder: (context, index) {
+            final doc = documents[index];
+            final data = doc.data() as Map<String, dynamic>;
+            String userId = widget.user;
+            String pasienId = doc.id;
 
-          // --- UI UTAMA DIBANGUN DI SINI ---
-          return Scaffold(
-            backgroundColor: Color(0xFFF4F6F9), // Warna background body
-            body: Stack(
-              children: [
-                _buildHeader(userName),
+            final tanggal = data['tanggal_pemeriksaan'] as Timestamp?;
+            String registerDate = '-';
+            if (tanggal != null) {
+              registerDate = DateFormat('yyyy/MM/dd').format(tanggal.toDate());
+            }
 
-                Padding(
-                  // Beri padding atas agar konten tidak tertutup header & search bar
-                  padding: const EdgeInsets.only(top: 220.0),
-                  child: _buildPatientList(), // Ganti dengan daftar pasien Anda nanti
+            return InkWell(
+              onTap: () => onPatientTap(userId, pasienId),
+              borderRadius: BorderRadius.circular(15),
+              child: Card(
+                margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+                elevation: 3,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15),
                 ),
-
-                // Search Bar diposisikan di atas tumpukan
-                _buildSearchBar(),
-              ],
-            ),
-            bottomNavigationBar: BottomNavigationBar(
-              currentIndex: _selectedIndex,
-              onTap: _onItemTapped,
-              items: const [
-                BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.graphic_eq),
-                  label: 'Partograf',
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Image.asset(
+                          'assets/images/pasien.png',
+                          height: 80,
+                          errorBuilder: (context, error, stackTrace) {
+                            return const Icon(
+                              Icons.person_outline,
+                              size: 80,
+                              color: Colors.grey,
+                            );
+                          },
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                data['nama'] ?? 'Tanpa Nama',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 18,
+                                  color: Colors.black,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Umur: ${data['umur'] ?? '-'} tahun',
+                                style: const TextStyle(color: Colors.black54),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'No. Register: $registerDate',
+                                style: const TextStyle(color: Colors.black54),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ],
-              type: BottomNavigationBarType.fixed,
-              backgroundColor: Colors.white,
-              selectedItemColor: Colors.blue,
-              unselectedItemColor: Colors.grey,
-            ),
-
-            floatingActionButton: FloatingActionButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const InputPasien()),
-                );
-              },
-              backgroundColor: Color(0xFFF8ABEB),
-              child: const Icon(Icons.add, size: 30, color: Colors.white),
-            ),
-            floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-          );
-        }
-
-        return const Scaffold(
-          body: Center(child: Text('User tidak ditemukan.')),
+              ),
+            );
+          },
         );
       },
     );
   }
 
-  // WIDGET UNTUK MEMBANGUN HEADER
-  Widget _buildHeader(String bidanName) {
+  Widget _buildHeader(String bidanName, String email, BuildContext context) {
     return ClipPath(
-      clipper: HeaderClipper(), // Clipper untuk membuat bentuk melengkung
+      clipper: HeaderClipper(),
       child: Container(
-        height: 240, // Tinggi header
-        padding: const EdgeInsets.fromLTRB(20, 50, 20, 0),
+        height: 240,
+        padding: const EdgeInsets.fromLTRB(20, 40, 5, 0),
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFFF8ABEB), Color(0xFFEEF1DD)],
+            colors: [Color(0xFFF8ABEB), Color(0xFFEDFADC)],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
@@ -124,12 +340,10 @@ class _HomeState extends State<Home> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Selamat Pagi',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 18,
-                    ),
+                  const SizedBox(height: 10),
+                  Text(
+                    _getGreeting(),
+                    style: const TextStyle(color: Colors.white70, fontSize: 18),
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -143,12 +357,36 @@ class _HomeState extends State<Home> {
                 ],
               ),
             ),
-            // Gambar bidan di pojok kanan atas
+            IconButton(
+              icon: const Icon(
+                Icons.account_circle,
+                size: 40,
+                color: Colors.white,
+              ),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (newContext) => Scaffold(
+                      appBar: AppBar(
+                        title: const Text('Profil'),
+                        backgroundColor: const Color(0xFFF8ABEB),
+                      ),
+                      body: _buildProfilePage(bidanName, email, context),
+                    ),
+                  ),
+                );
+              },
+            ),
             Image.asset(
               'assets/images/bidan.png',
               height: 100,
               errorBuilder: (context, error, stackTrace) {
-                return const Icon(Icons.person, size: 80, color: Colors.white24);
+                return const Icon(
+                  Icons.person,
+                  size: 80,
+                  color: Colors.white24,
+                );
               },
             ),
           ],
@@ -157,10 +395,21 @@ class _HomeState extends State<Home> {
     );
   }
 
-  // WIDGET UNTUK SEARCH BAR
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 11) {
+      return 'Selamat Pagi';
+    } else if (hour < 15) {
+      return 'Selamat Siang';
+    } else if (hour < 19) {
+      return 'Selamat Sore';
+    } else {
+      return 'Selamat Malam';
+    }
+  }
+
   Widget _buildSearchBar() {
     return Positioned(
-      // Atur posisi search bar agar berada di area lengkungan
       top: 165,
       left: 20,
       right: 20,
@@ -188,148 +437,70 @@ class _HomeState extends State<Home> {
     );
   }
 
-  // Placeholder untuk daftar pasien
-  Widget _buildPatientList() {
-    // Path ke koleksi pasien, dibuat dinamis menggunakan userId dari bidan yang login
-    final Stream<QuerySnapshot> pasienStream = FirebaseFirestore.instance
-        .collection('user')
-        .doc('QfAsyIkRTFuvNSy5YRaH')
-        .collection('pasien')
-        .snapshots();
-
-    // Gunakan StreamBuilder untuk "mendengarkan" data dari Firestore
-    return StreamBuilder<QuerySnapshot>(
-      stream: pasienStream,
-      builder: (BuildContext context, AsyncSnapshot<QuerySnapshot> snapshot) {
-        // 1. Tangani jika ada error saat mengambil data
-        if (snapshot.hasError) {
-          return const Center(child: Text('Terjadi kesalahan.'));
-        }
-
-        // 2. Tampilkan loading indicator saat data sedang diambil
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        // 3. Jika data sudah datang, ambil daftar dokumennya
-        final documents = snapshot.data!.docs;
-
-        // 4. Tangani jika tidak ada satupun dokumen (data pasien kosong)
-        if (documents.isEmpty) {
-          return const Center(child: Text("Belum ada data pasien."));
-        }
-
-        // 5. Jika semua aman dan data ada, bangun ListView.separated
-        // ListView.separated lebih efisien untuk daftar dengan pemisah
-        return ListView.separated(
-          padding: const EdgeInsets.fromLTRB(10, 20, 10, 20),
-          itemCount: documents.length,
-          // separatorBuilder membangun pemisah antar item
-          separatorBuilder: (context, index) => const Divider(
-            color: Color(0xFFFF8040),
-            thickness: 1,
-            indent: 20,
-            endIndent: 20,
+  Widget _buildProfilePage(String name, String email, BuildContext context) {
+    return Container(
+      alignment: Alignment.center,
+      padding: const EdgeInsets.all(30.0),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.account_circle, size: 100, color: Colors.grey),
+          const SizedBox(height: 20),
+          Text(
+            name,
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
           ),
-          // itemBuilder membangun setiap card pasien
-          itemBuilder: (context, index) {
-            final doc = documents[index];
-            final data = doc.data() as Map<String, dynamic>;
-            String userId = 'QfAsyIkRTFuvNSy5YRaH' ;
-            String pasienId = doc.id;
-
-            // Logika untuk memformat tanggal
-            final tanggal = data['tanggal_pemeriksaan'] as Timestamp?;
-            String registerDate = '-';
-            if (tanggal != null) {
-              registerDate = DateFormat('yyyy/MM/dd').format(tanggal.toDate());
-            }
-
-            // Return widget Card Anda di sini
-            return InkWell(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => DetailPasien(pasienId: pasienId, userId: userId,)),
-                );
-              },
-              borderRadius: BorderRadius.circular(15),
-              child: Card(
-                margin: const EdgeInsets.symmetric(vertical: 4), // Margin vertikal lebih kecil
-                elevation: 5,
-                color: Colors.transparent, // Biarkan container yang menghias
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Image.asset(
-                          'assets/images/pasien.png',
-                          height: 100,
-                          errorBuilder: (context, error, stackTrace) {
-                            return const Icon(Icons.person, size: 80, color: Colors.white24);
-                          },
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                data['nama'] ?? 'Tanpa Nama',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 18,
-                                  color: Colors.black,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Umur: ${data['umur'] ?? '-'} tahun',
-                                style: const TextStyle(color: Colors.black),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'No. Register: $registerDate',
-                                style: const TextStyle(color: Colors.black),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+          const SizedBox(height: 8),
+          Text(
+            email,
+            style: const TextStyle(fontSize: 16, color: Colors.black54),
+          ),
+          const SizedBox(height: 40),
+          ElevatedButton(
+            onPressed: () {
+              _logout();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(30),
               ),
-            );
-          },
-        );
-      },
+            ),
+            child: const Text(
+              'Logout',
+              style: TextStyle(fontSize: 18, color: Colors.white),
+            ),
+          ),
+        ],
+      ),
     );
+  }
+
+  Future<void> _logout() async {
+    await FirebaseAuth.instance.signOut();
+    await GoogleSignIn().signOut();
+    if (mounted) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+        (Route<dynamic> route) => false,
+      );
+    }
   }
 }
 
-// CLASS UNTUK MEMBUAT BENTUK LENGKUNG PADA HEADER
 class HeaderClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
     var path = Path();
-    path.lineTo(0, size.height - 50); // Mulai dari kiri bawah (dengan offset)
+    path.lineTo(0, size.height - 50);
     path.quadraticBezierTo(
-      size.width / 2, // Titik kontrol tengah
-      size.height,    // Puncak lengkungan
-      size.width,     // Titik akhir di kanan bawah
+      size.width / 2,
+      size.height,
+      size.width,
       size.height - 50,
     );
-    path.lineTo(size.width, 0); // Garis ke kanan atas
+    path.lineTo(size.width, 0);
     path.close();
     return path;
   }
@@ -338,4 +509,24 @@ class HeaderClipper extends CustomClipper<Path> {
   bool shouldReclip(CustomClipper<Path> oldClipper) {
     return false;
   }
+}
+
+@override
+Path getClip(Size size) {
+  var path = Path();
+  path.lineTo(0, size.height - 50);
+  path.quadraticBezierTo(
+    size.width / 2,
+    size.height,
+    size.width,
+    size.height - 50,
+  );
+  path.lineTo(size.width, 0);
+  path.close();
+  return path;
+}
+
+@override
+bool shouldReclip(CustomClipper<Path> oldClipper) {
+  return false;
 }
