@@ -1,9 +1,29 @@
+import 'dart:async'; // Diperlukan untuk Timer
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:partograf/modules/pasien/partograft_pasien/grapic.dart';
 
+// ===== MODEL DATA BARU UNTUK KONTRAKSI =====
+class CatatanKontraksi {
+  final DateTime jamMulai;
+  final DateTime jamSelesai;
+
+  CatatanKontraksi({
+    required this.jamMulai,
+    required this.jamSelesai,
+  });
+
+  Duration get durasi => jamSelesai.difference(jamMulai);
+
+  factory CatatanKontraksi.fromMap(Map<String, dynamic> map) {
+    return CatatanKontraksi(
+      jamMulai: (map['jam_mulai'] as Timestamp).toDate(),
+      jamSelesai: (map['jam_selesai'] as Timestamp).toDate(),
+    );
+  }
+}
+
+// Data Model untuk satu catatan serviks
 class CatatanServiks {
   final DateTime jamPemeriksaan;
   final int besarPembukaan;
@@ -15,14 +35,6 @@ class CatatanServiks {
     required this.besarPenurunan,
   });
 
-  Map<String, dynamic> toJson() {
-    return {
-      'jam_pemeriksaan': Timestamp.fromDate(jamPemeriksaan),
-      'besar_pembukaan': besarPembukaan,
-      'besar_penurunan': besarPenurunan,
-    };
-  }
-
   factory CatatanServiks.fromMap(Map<String, dynamic> map) {
     return CatatanServiks(
       jamPemeriksaan: (map['jam_pemeriksaan'] as Timestamp).toDate(),
@@ -30,23 +42,33 @@ class CatatanServiks {
       besarPenurunan: map['besar_penurunan'] as int,
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      // Menggunakan format ISO 8601 agar mudah dibaca oleh JavaScript
+      'jam_pemeriksaan': jamPemeriksaan.toIso8601String(),
+      'besar_pembukaan': besarPembukaan,
+      'besar_penurunan': besarPenurunan,
+    };
+  }
 }
 
+// Layar utama untuk menampilkan kemajuan persalinan
 class KemajuanPersalinan extends StatefulWidget {
-  String userId;
-  String pasienId;
+  final String userId;
+  final String pasienId;
 
-  KemajuanPersalinan({
+  const KemajuanPersalinan({
     super.key,
     required this.userId,
     required this.pasienId,
   });
 
   @override
-  State<KemajuanPersalinan> createState() => _KemajuanPersalinanScreenState();
+  State<KemajuanPersalinan> createState() => _KemajuanPersalinanState();
 }
 
-class _KemajuanPersalinanScreenState extends State<KemajuanPersalinan> with SingleTickerProviderStateMixin {
+class _KemajuanPersalinanState extends State<KemajuanPersalinan> with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
   @override
@@ -61,15 +83,30 @@ class _KemajuanPersalinanScreenState extends State<KemajuanPersalinan> with Sing
     super.dispose();
   }
 
-  void _tambahCatatan() async {
-    final result = await Navigator.push(
+  // Navigasi ke layar tambah catatan serviks
+  void _tambahCatatanServiks() {
+    Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => TambahCatatanScreen(pasienId: widget.pasienId)),
+      MaterialPageRoute(
+        builder: (context) => TambahCatatanScreen(
+          userId: widget.userId,
+          pasienId: widget.pasienId,
+        ),
+      ),
     );
+  }
 
-    if (result != null && result is CatatanServiks) {
-      // When a new record is added, the StreamBuilder will automatically update the UI
-    }
+  // ===== FUNGSI BARU: Navigasi ke layar tambah kontraksi =====
+  void _tambahCatatanKontraksi() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => TambahKontraksiScreen(
+          userId: widget.userId,
+          pasienId: widget.pasienId,
+        ),
+      ),
+    );
   }
 
   @override
@@ -78,7 +115,7 @@ class _KemajuanPersalinanScreenState extends State<KemajuanPersalinan> with Sing
       appBar: AppBar(
         title: const Text('Kemajuan Persalinan', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         flexibleSpace: Container(
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             gradient: LinearGradient(
               colors: [Color(0xFFF8ABEB), Color(0xFFEEF1DD)],
               begin: Alignment.topCenter,
@@ -87,7 +124,10 @@ class _KemajuanPersalinanScreenState extends State<KemajuanPersalinan> with Sing
           ),
         ),
         elevation: 0,
-        leading: const Icon(Icons.arrow_back, color: Colors.white),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
       ),
       body: Column(
         children: [
@@ -96,7 +136,7 @@ class _KemajuanPersalinanScreenState extends State<KemajuanPersalinan> with Sing
             child: TabBar(
               controller: _tabController,
               labelColor: Colors.black,
-              unselectedLabelColor: Colors.white,
+              unselectedLabelColor: Colors.grey[600],
               indicator: BoxDecoration(
                 borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(10),
@@ -105,17 +145,8 @@ class _KemajuanPersalinanScreenState extends State<KemajuanPersalinan> with Sing
                 color: Theme.of(context).scaffoldBackgroundColor,
               ),
               tabs: const [
-                Tab(child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 12.0, horizontal: 12.0),
-                  child: Text(
-                    'Pembukaan Serviks',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                  ),
-                ),),
-                Tab(child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 12.0, horizontal: 12.0),
-                  child: Text('Kontraksi Uterus'),
-                ),),
+                Tab(child: Text('Pembukaan Serviks')),
+                Tab(child: Text('Kontraksi Uterus')),
               ],
             ),
           ),
@@ -124,7 +155,8 @@ class _KemajuanPersalinanScreenState extends State<KemajuanPersalinan> with Sing
               controller: _tabController,
               children: [
                 _buildPembukaanServiksTab(),
-                const Center(child: Text('Fitur Kontraksi Uterus akan segera hadir!')),
+                // ===== PERUBAHAN: Memanggil widget untuk tab kontraksi =====
+                _buildKontraksiUterusTab(),
               ],
             ),
           ),
@@ -133,128 +165,540 @@ class _KemajuanPersalinanScreenState extends State<KemajuanPersalinan> with Sing
     );
   }
 
-  Widget _buildPembukaanServiksTab() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      child: Column(
-        children: [
-          const SizedBox(height: 16),
-          const Text(
-            'Catatan ini membantu memantau progres pembukaan serviks selama proses persalinan.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.grey),
-          ),
-          const SizedBox(height: 20),
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('user')
-                  .doc(widget.userId)
-                  .collection('pasien')
-                  .doc(widget.pasienId)
-                  .collection('kemajuan_persalinan')
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return _buildEmptyState();
-                }
+  // ===== WIDGET BARU: Untuk membangun tab "Kontraksi Uterus" =====
+  Widget _buildKontraksiUterusTab() {
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('user')
+          .doc(widget.userId)
+          .collection('pasien')
+          .doc(widget.pasienId)
+          .snapshots(),
+      builder: (context, pasienSnapshot) {
+        if (pasienSnapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (!pasienSnapshot.hasData || !pasienSnapshot.data!.exists) {
+          return const Center(child: Text('Data pasien tidak ditemukan.'));
+        }
 
-                final documents = snapshot.data!.docs;
-                List<CatatanServiks> catatanList = [];
-                for (var doc in documents) {
-                  var data = doc.data() as Map<String, dynamic>;
-                  var pembukaanServiksList = List.from(data['pembukaan_serviks'] ?? []);
-                  for (var item in pembukaanServiksList) {
-                    catatanList.add(CatatanServiks.fromMap(item));
-                  }
-                }
+        final pasienData = pasienSnapshot.data!.data() as Map<String, dynamic>?;
+        final String? kemajuanId = pasienData?['kemajuan_id'];
 
-                return PartografScreen(catatanServiks: catatanList);
-              },
+        if (kemajuanId == null) {
+          return _buildContentWithButton(
+            content: _buildEmptyState(
+              pesan: 'Belum ada catatan kontraksi',
+              deskripsi: 'Tekan tombol di bawah untuk menambah\ncatatan kontraksi pertama.',
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(bottom: 50.0, top: 10.0),
-            child: ElevatedButton.icon(
-              onPressed: _tambahCatatan,
-              icon: const Icon(Icons.add, color: Colors.white),
-              label: const Text('Tambahkan Catatan', style: TextStyle(color: Colors.white)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFF8ABEB),
-                padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 40),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+            onPressed: _tambahCatatanKontraksi,
+            labelTombol: 'Catat Kontraksi',
+          );
+        }
+
+        return StreamBuilder<DocumentSnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('user')
+              .doc(widget.userId)
+              .collection('pasien')
+              .doc(widget.pasienId)
+              .collection('kemajuan_persalinan')
+              .doc(kemajuanId)
+              .snapshots(),
+          builder: (context, kemajuanSnapshot) {
+            if (kemajuanSnapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (kemajuanSnapshot.hasError) {
+              return Center(child: Text('Error: ${kemajuanSnapshot.error}'));
+            }
+            if (!kemajuanSnapshot.hasData || !kemajuanSnapshot.data!.exists) {
+              return _buildContentWithButton(
+                content: _buildEmptyState(
+                  pesan: 'Belum ada catatan kontraksi',
+                  deskripsi: 'Tekan tombol di bawah untuk menambah\ncatatan kontraksi pertama.',
                 ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+                onPressed: _tambahCatatanKontraksi,
+                labelTombol: 'Catat Kontraksi',
+              );
+            }
 
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Image.network(
-            'https://i.ibb.co/9vqyht2/cute-ghost.png',
-            height: 100,
-            errorBuilder: (context, error, stackTrace) => const Icon(Icons.sentiment_dissatisfied, size: 100, color: Colors.grey),
-          ),
-          const SizedBox(height: 20),
-          const Text(
-            'Belum ada catatan pembukaan serviks',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Tap tombol di bawah untuk mulai mencatat progres persalinan',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.grey),
-          ),
-        ],
-      ),
-    );
-  }
+            final kemajuanData = kemajuanSnapshot.data!.data() as Map<String, dynamic>;
+            final List<dynamic> listData = kemajuanData['kontraksi_uterus'] ?? [];
 
-  Widget _buildDataList(List<CatatanServiks> catatanList) {
-    return ListView.builder(
-      itemCount: catatanList.length,
-      itemBuilder: (context, index) {
-        final catatan = catatanList[index];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          elevation: 2,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-            title: Text(
-              'Pemeriksaan ${index + 1}',
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 5),
-                Text('Waktu: ${DateFormat('d MMM yyyy, HH:mm').format(catatan.jamPemeriksaan)}'),
-                Text('Pembukaan: ${catatan.besarPembukaan} cm'),
-                Text('Penurunan: ${catatan.besarPenurunan}/5'),
-              ],
-            ),
-            trailing: const Icon(Icons.chevron_right),
-          ),
+            if (listData.isEmpty) {
+              return _buildContentWithButton(
+                content: _buildEmptyState(
+                  pesan: 'Belum ada catatan kontraksi',
+                  deskripsi: 'Tekan tombol di bawah untuk menambah\ncatatan kontraksi pertama.',
+                ),
+                onPressed: _tambahCatatanKontraksi,
+                labelTombol: 'Catat Kontraksi',
+              );
+            }
+
+            List<CatatanKontraksi> catatanList = listData
+                .map((item) => CatatanKontraksi.fromMap(item as Map<String, dynamic>))
+                .toList();
+
+            catatanList.sort((a, b) => b.jamMulai.compareTo(a.jamMulai));
+
+            return _buildContentWithButton(
+              content: _buildKontraksiList(catatanList),
+              onPressed: _tambahCatatanKontraksi,
+              labelTombol: 'Catat Kontraksi',
+            );
+          },
         );
       },
     );
   }
+
+  Widget _buildPembukaanServiksTab() {
+
+    print("Mencoba membangun tab dengan User ID: ${widget.userId}");
+    print("Mencoba membangun tab dengan Pasien ID: ${widget.pasienId}");
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('user')
+          .doc(widget.userId)
+          .collection('pasien')
+          .doc(widget.pasienId)
+          .snapshots(),
+      builder: (context, pasienSnapshot) {
+        if (pasienSnapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (!pasienSnapshot.hasData || !pasienSnapshot.data!.exists) {
+          return const Center(child: Text('Data pasien tidak ditemukan.'));
+        }
+
+        final pasienData = pasienSnapshot.data!.data() as Map<String, dynamic>?;
+        final String? kemajuanId = pasienData?['kemajuan_id'];
+
+        if (kemajuanId == null) {
+          return _buildContentWithButton(
+            content: _buildEmptyState(),
+            onPressed: _tambahCatatanServiks,
+            labelTombol: 'Tambahkan Catatan',
+          );
+        }
+
+        return StreamBuilder<DocumentSnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('user')
+              .doc(widget.userId)
+              .collection('pasien')
+              .doc(widget.pasienId)
+              .collection('kemajuan_persalinan')
+              .doc(kemajuanId)
+              .snapshots(),
+          builder: (context, kemajuanSnapshot) {
+            if (kemajuanSnapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (!kemajuanSnapshot.hasData || !kemajuanSnapshot.data!.exists) {
+              return _buildContentWithButton(
+                content: _buildEmptyState(),
+                onPressed: _tambahCatatanServiks,
+                labelTombol: 'Tambahkan Catatan',
+              );
+            }
+
+            final kemajuanData = kemajuanSnapshot.data!.data() as Map<String, dynamic>;
+            final List<dynamic> listData = kemajuanData['pembukaan_serviks'] ?? [];
+
+            if (listData.isEmpty) {
+              return _buildContentWithButton(
+                content: _buildEmptyState(),
+                onPressed: _tambahCatatanServiks,
+                labelTombol: 'Tambahkan Catatan',
+              );
+            }
+
+            List<CatatanServiks> catatanList = listData
+                .map((item) => CatatanServiks.fromMap(item as Map<String, dynamic>))
+                .toList();
+
+            catatanList.sort((a, b) => b.jamPemeriksaan.compareTo(a.jamPemeriksaan));
+
+            return _buildContentWithButton(
+              content: _buildServiksList(catatanList),
+              onPressed: _tambahCatatanServiks,
+              labelTombol: 'Tambahkan Catatan',
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // ===== PERUBAHAN: Helper ini dibuat lebih umum =====
+  Widget _buildContentWithButton({
+    required Widget content,
+    required VoidCallback onPressed,
+    required String labelTombol,
+  }) {
+    return Column(
+      children: [
+        Expanded(child: content),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 24.0, top: 10.0),
+          child: ElevatedButton.icon(
+            onPressed: onPressed,
+            icon: const Icon(Icons.add, color: Colors.white),
+            label: Text(labelTombol, style: const TextStyle(color: Colors.white)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFF8ABEB),
+              padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 40),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+
+  // ===== PERUBAHAN: Empty state dibuat lebih umum =====
+  Widget _buildEmptyState({
+    String pesan = 'Belum ada catatan',
+    String deskripsi = 'Tekan tombol di bawah untuk menambah\ncatatan kemajuan persalinan pertama.',
+  }) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.document_scanner_outlined, size: 100, color: Colors.grey[300]),
+          const SizedBox(height: 20),
+          Text(pesan, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey)),
+          const SizedBox(height: 8),
+          Text(deskripsi, textAlign: TextAlign.center, style: const TextStyle(color: Colors.grey)),
+        ],
+      ),
+    );
+  }
+
+  // Menampilkan daftar catatan serviks
+  Widget _buildServiksList(List<CatatanServiks> catatanList) {
+    return ListView.builder(
+      padding: const EdgeInsets.all(16.0),
+      itemCount: catatanList.length,
+      itemBuilder: (context, index) {
+        final catatan = catatanList[index];
+        return _buildServiksCard(catatan, catatanList.length - index);
+      },
+    );
+  }
+
+  // ===== WIDGET BARU: Menampilkan daftar catatan kontraksi =====
+  Widget _buildKontraksiList(List<CatatanKontraksi> catatanList) {
+    return ListView.builder(
+      padding: const EdgeInsets.all(16.0),
+      itemCount: catatanList.length,
+      itemBuilder: (context, index) {
+        final catatan = catatanList[index];
+        return _buildKontraksiCard(catatan, catatanList.length - index);
+      },
+    );
+  }
+
+  // Kartu untuk menampilkan satu data catatan serviks
+  Widget _buildServiksCard(CatatanServiks catatan, int nomorPemeriksaan) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      elevation: 4,
+      shadowColor: Colors.pink.withOpacity(0.1),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Pemeriksaan Ke-$nomorPemeriksaan', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF2C2C6A))),
+            const Divider(height: 20),
+            _buildInfoRow(icon: Icons.access_time_filled, label: 'Jam Pemeriksaan', value: DateFormat('d MMM yyyy, HH:mm').format(catatan.jamPemeriksaan), iconColor: Colors.orange),
+            const SizedBox(height: 12),
+            _buildInfoRow(icon: Icons.open_in_full, label: 'Pembukaan Serviks', value: '${catatan.besarPembukaan} cm', iconColor: Colors.pink),
+            const SizedBox(height: 12),
+            _buildInfoRow(icon: Icons.arrow_downward, label: 'Penurunan Serviks', value: '${catatan.besarPenurunan}/5', iconColor: Colors.purple),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ===== WIDGET BARU: Kartu untuk menampilkan satu data kontraksi =====
+  Widget _buildKontraksiCard(CatatanKontraksi catatan, int nomorKontraksi) {
+    String formatDuration(Duration d) {
+      String twoDigits(int n) => n.toString().padLeft(2, '0');
+      String twoDigitMinutes = twoDigits(d.inMinutes.remainder(60));
+      String twoDigitSeconds = twoDigits(d.inSeconds.remainder(60));
+      return "$twoDigitMinutes menit $twoDigitSeconds detik";
+    }
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      elevation: 4,
+      shadowColor: Colors.teal.withOpacity(0.1),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Kontraksi Ke-$nomorKontraksi', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF004D40))),
+            const Divider(height: 20),
+            _buildInfoRow(
+              icon: Icons.play_circle_outline,
+              label: 'Jam Mulai',
+              value: DateFormat('d MMM yyyy, HH:mm:ss').format(catatan.jamMulai),
+              iconColor: Colors.blue,
+            ),
+            const SizedBox(height: 12),
+            _buildInfoRow(
+              icon: Icons.timer_outlined,
+              label: 'Lama Kontraksi',
+              value: formatDuration(catatan.durasi),
+              iconColor: Colors.green,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Widget bantuan untuk membuat baris info yang konsisten
+  Widget _buildInfoRow({required IconData icon, required String label, required String value, required Color iconColor}) {
+    return Row(
+      children: [
+        Icon(icon, color: iconColor, size: 20),
+        const SizedBox(width: 12),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+            Text(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+          ],
+        ),
+      ],
+    );
+  }
 }
 
-// Layar untuk menambah catatan baru
+
+class TambahKontraksiScreen extends StatefulWidget {
+  final String userId;
+  final String pasienId;
+  const TambahKontraksiScreen({super.key, required this.userId, required this.pasienId});
+
+  @override
+  State<TambahKontraksiScreen> createState() => _TambahKontraksiScreenState();
+}
+
+class _TambahKontraksiScreenState extends State<TambahKontraksiScreen> {
+  bool _isLoading = false;
+  bool _isRunning = false;
+
+  DateTime? _jamMulai;
+  DateTime? _jamSelesai;
+
+  Timer? _timer;
+  int _secondsElapsed = 0;
+
+  @override
+  void dispose() {
+    _timer?.cancel(); // Pastikan timer dibatalkan saat layar ditutup
+    super.dispose();
+  }
+
+  void _toggleStopwatch() {
+    setState(() {
+      _isRunning = !_isRunning;
+      if (_isRunning) {
+        // Mulai Stopwatch
+        _jamMulai = DateTime.now();
+        _jamSelesai = null;
+        _secondsElapsed = 0;
+        _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+          setState(() {
+            _secondsElapsed++;
+          });
+        });
+      } else {
+        // Hentikan Stopwatch
+        _timer?.cancel();
+        _jamSelesai = DateTime.now();
+      }
+    });
+  }
+
+  void _reset() {
+    setState(() {
+      _timer?.cancel();
+      _isRunning = false;
+      _jamMulai = null;
+      _jamSelesai = null;
+      _secondsElapsed = 0;
+    });
+  }
+
+  Future<void> _simpanData() async {
+    if (_jamMulai == null || _jamSelesai == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Selesaikan pencatatan waktu terlebih dahulu!'), backgroundColor: Colors.orange));
+      return;
+    }
+
+    setState(() { _isLoading = true; });
+
+    final Map<String, dynamic> dataKontraksiBaru = {
+      'jam_mulai': Timestamp.fromDate(_jamMulai!),
+      'jam_selesai': Timestamp.fromDate(_jamSelesai!),
+    };
+
+    final pasienRef = FirebaseFirestore.instance
+        .collection('user')
+        .doc(widget.userId) // Ganti dengan ID user yang sesuai
+        .collection('pasien')
+        .doc(widget.pasienId);
+
+    try {
+      final pasienDoc = await pasienRef.get();
+      final pasienData = pasienDoc.data() as Map<String, dynamic>?;
+      String? kemajuanId = pasienData?['kemajuan_id'];
+
+      if (kemajuanId == null) {
+        // Jika kemajuan_id tidak ada, buat dokumen baru
+        final newKemajuanRef = pasienRef.collection('kemajuan_persalinan').doc();
+        kemajuanId = newKemajuanRef.id;
+
+        await newKemajuanRef.set({
+          'kemajuan_id': kemajuanId,
+          'kontraksi_uterus': [dataKontraksiBaru]
+        });
+
+        await pasienRef.update({'kemajuan_id': kemajuanId});
+      } else {
+        // Jika kemajuan_id sudah ada, update array yang ada
+        final kemajuanRef = pasienRef.collection('kemajuan_persalinan').doc(kemajuanId);
+        final kemajuanDoc = await kemajuanRef.get();
+
+        if (kemajuanDoc.exists) {
+          await kemajuanRef.update({
+            'kontraksi_uterus': FieldValue.arrayUnion([dataKontraksiBaru])
+          });
+        } else {
+          // Kasus jika kemajuan_id ada di pasien tapi doc nya terhapus
+          await kemajuanRef.set({
+            'kemajuan_id': kemajuanId,
+            'kontraksi_uterus': [dataKontraksiBaru]
+          });
+        }
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Kontraksi berhasil dicatat!'), backgroundColor: Colors.green));
+      Navigator.pop(context);
+
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal menyimpan data: $e'), backgroundColor: Colors.red));
+    } finally {
+      if (mounted) { setState(() { _isLoading = false; }); }
+    }
+  }
+
+  String get _timerText {
+    final int minutes = _secondsElapsed ~/ 60;
+    final int seconds = _secondsElapsed % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Catat Kontraksi', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFFF8ABEB), Color(0xFFEEF1DD)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+      ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'Lama Kontraksi',
+                style: TextStyle(fontSize: 24, color: Colors.grey[600]),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                _timerText,
+                style: const TextStyle(fontSize: 72, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 40),
+              SizedBox(
+                width: 200,
+                height: 200,
+                child: ElevatedButton(
+                  onPressed: _toggleStopwatch,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _isRunning ? Colors.redAccent : Colors.green,
+                    shape: const CircleBorder(),
+                  ),
+                  child: Icon(
+                    _isRunning ? Icons.stop : Icons.play_arrow,
+                    size: 100,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 40),
+              if (!_isRunning && _jamMulai != null)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Reset'),
+                      onPressed: _isLoading ? null : _reset,
+                    ),
+                    const SizedBox(width: 16),
+                    ElevatedButton.icon(
+                      icon: _isLoading
+                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white,))
+                          : const Icon(Icons.save),
+                      label: Text(_isLoading ? 'Menyimpan...' : 'Simpan'),
+                      onPressed: _isLoading ? null : _simpanData,
+                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF8E44AD)),
+                    ),
+                  ],
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class TambahCatatanScreen extends StatefulWidget {
-  String pasienId;
-  TambahCatatanScreen({super.key, required this.pasienId});
+  final String userId;
+  final String pasienId;
+  const TambahCatatanScreen({super.key, required this.pasienId, required this.userId});
 
   @override
   State<TambahCatatanScreen> createState() => _TambahCatatanScreenState();
@@ -263,89 +707,80 @@ class TambahCatatanScreen extends StatefulWidget {
 class _TambahCatatanScreenState extends State<TambahCatatanScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  // --- Controller & State ---
-  final _jamController = TextEditingController();
-  final _pembuembukaanController = TextEditingController();
-  final _penurunanController = TextEditingController();
-
+  // --- State untuk form ---
+  DateTime? _selectedDateTime;
+  int? _selectedPembukaan;
+  int? _selectedPenurunan;
   bool _isLoading = false;
-  DateTime? _selectedDateTimePemeriksaan;
-  TimeOfDay? _selectedTime; // Declare selected time
-  int? _selectedPembukaan; // Declare selected pembukaan
-  int? _selectedPenurunan; // Declare selected penurunan
 
-  @override
-  void dispose() {
-    _jamController.dispose();
-    _pembuembukaanController.dispose();
-    _penurunanController.dispose();
-    super.dispose();
-  }
-
-  Future<DateTime?> _pilihTanggalDanJam(BuildContext context, DateTime? initialDate) async {
+  // --- Fungsi untuk memilih tanggal dan waktu ---
+  Future<void> _pilihTanggalDanJam(BuildContext context) async {
     final DateTime? date = await showDatePicker(
       context: context,
-      initialDate: initialDate ?? DateTime.now(),
+      initialDate: DateTime.now(),
       firstDate: DateTime(2000),
       lastDate: DateTime(2101),
-      helpText: 'Pilih Tanggal',
     );
-
-    if (date == null) return null;
-    if (!mounted) return null;
+    if (date == null || !mounted) return;
 
     final TimeOfDay? time = await showTimePicker(
       context: context,
-      initialTime: TimeOfDay.fromDateTime(initialDate ?? DateTime.now()),
-      helpText: 'Pilih Jam',
+      initialTime: TimeOfDay.fromDateTime(DateTime.now()),
     );
+    if (time == null) return;
 
-    if (time == null) return null;
-
-    return DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    setState(() {
+      _selectedDateTime = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    });
   }
 
-  // --- Fungsi Simpan Data ---
-  // --- Fungsi Simpan Data ---
+  // --- Fungsi untuk menyimpan data ke Firestore ---
   Future<void> _simpanData() async {
     if (_formKey.currentState!.validate()) {
       setState(() { _isLoading = true; });
 
-      final Map<String, dynamic> dataPasien = {
+      final Map<String, dynamic> dataCatatanBaru = {
+        'jam_pemeriksaan': Timestamp.fromDate(_selectedDateTime!),
         'besar_pembukaan': _selectedPembukaan,
         'besar_penurunan': _selectedPenurunan,
-
-        // Langsung gunakan state DateTime yang sudah lengkap untuk semua field
-        'jam_pemeriksaan': _selectedDateTimePemeriksaan != null ? Timestamp.fromDate(_selectedDateTimePemeriksaan!) : null,
       };
-      final FirebaseFirestore firestore = FirebaseFirestore.instance;
-      final pasiernRef = firestore.collection('user').doc('QfAsyIkRTFuvNSy5YRaH').collection('pasien').doc(widget.pasienId);
+
+      final pasienRef = FirebaseFirestore.instance
+          .collection('user')
+          .doc(widget.userId) // Ganti dengan ID user yang sesuai
+          .collection('pasien')
+          .doc(widget.pasienId);
 
       try {
-        final pasienDoc = await pasiernRef.get();
-        String? kemajuan_id = pasienDoc.data()!['kemajuan_id'];
+        final pasienDoc = await pasienRef.get();
+        final pasienData = pasienDoc.data() as Map<String, dynamic>?;
+        String? kemajuanId = pasienData?['kemajuan_id'];
 
-        if (kemajuan_id == null) {
-          // Jika kemajuan_id tidak ada, buat koleksi baru dan dokumen untuk kemajuan_persalinan
-          final newKemajuanRef = pasiernRef.collection('kemajuan_persalinan').doc();
-          kemajuan_id = newKemajuanRef.id;
+        if (kemajuanId == null) {
+          // Jika kemajuan_id tidak ada, buat dokumen baru di 'kemajuan_persalinan'
+          final newKemajuanRef = pasienRef.collection('kemajuan_persalinan').doc();
+          kemajuanId = newKemajuanRef.id;
+
+          // Set data pertama di dokumen baru tersebut
           await newKemajuanRef.set({
-            'kemajuan_id': kemajuan_id,
-            'pembukaan_serviks': [dataPasien] // Menyimpan data pembukaan serviks pertama
+            'kemajuan_id': kemajuanId,
+            'pembukaan_serviks': [dataCatatanBaru] // Simpan sebagai array dengan 1 item
           });
 
-          await pasiernRef.update({'kemajuan_id': kemajuan_id});
+          // Update dokumen pasien dengan kemajuan_id yang baru
+          await pasienRef.update({'kemajuan_id': kemajuanId});
         } else {
-          // Jika kemajuan_id sudah ada, update koleksi yang sudah ada
-          final kemajuanRef = pasiernRef.collection('kemajuan_persalinan').doc(kemajuan_id);
+          // Jika kemajuan_id sudah ada, update array yang ada
+          final kemajuanRef = pasienRef.collection('kemajuan_persalinan').doc(kemajuanId);
           await kemajuanRef.update({
-            'pembukaan_serviks': FieldValue.arrayUnion([dataPasien]) // Menambahkan data baru ke array pembukaan_serviks
+            'pembukaan_serviks': FieldValue.arrayUnion([dataCatatanBaru])
           });
         }
 
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Data pasien berhasil disimpan!'), backgroundColor: Colors.green));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Catatan berhasil disimpan!'), backgroundColor: Colors.green));
         Navigator.pop(context);
+
       } catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal menyimpan data: $e'), backgroundColor: Colors.red));
@@ -355,90 +790,62 @@ class _TambahCatatanScreenState extends State<TambahCatatanScreen> {
     }
   }
 
-
-  // Time picker method
-  Future<void> _selectTime(BuildContext context) async {
-    final TimeOfDay? time = await showTimePicker(
-      context: context,
-      initialTime: _selectedTime ?? TimeOfDay.now(),
-    );
-
-    if (time != null && time != _selectedTime) {
-      setState(() {
-        _selectedTime = time;
-        _selectedDateTimePemeriksaan = DateTime(
-          DateTime.now().year,
-          DateTime.now().month,
-          DateTime.now().day,
-          time.hour,
-          time.minute,
-        );
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: PreferredSize(
-        preferredSize: Size.fromHeight(kToolbarHeight), // Menentukan tinggi AppBar
-        child: AppBar(
-          title: const Text(
-            'Tambah Catatan',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-          elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-          flexibleSpace: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFFF8ABEB), Color(0xFFEEF1DD)], // Gradient warna sesuai permintaan
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+      appBar: AppBar(
+        title: const Text('Tambah Catatan', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFFF8ABEB), Color(0xFFEEF1DD)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
           ),
         ),
       ),
-
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20.0),
         child: Form(
           key: _formKey,
           child: Card(
             elevation: 4,
+            shadowColor: Colors.pink.withOpacity(0.2),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             child: Padding(
               padding: const EdgeInsets.all(24.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Pembukaan Serviks', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const Text('Detail Pemeriksaan', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF2C2C6A))),
                   const SizedBox(height: 24),
                   // Input Jam Periksa
                   TextFormField(
                     readOnly: true,
                     controller: TextEditingController(
-                      text: _selectedTime == null ? '' : DateFormat('HH:mm').format(DateTime(0, 0, 0, _selectedTime!.hour, _selectedTime!.minute)),
+                      text: _selectedDateTime == null ? '' : DateFormat('d MMM yyyy, HH:mm').format(_selectedDateTime!),
                     ),
                     decoration: InputDecoration(
-                      labelText: 'Jam Periksa',
-                      hintText: 'Pilih waktu',
+                      labelText: 'Jam Pemeriksaan',
+                      hintText: 'Pilih tanggal & waktu',
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      suffixIcon: const Icon(Icons.access_time),
+                      suffixIcon: const Icon(Icons.calendar_today),
                     ),
-                    onTap: () => _selectTime(context),
-                    validator: (value) => _selectedTime == null ? 'Waktu tidak boleh kosong' : null,
+                    onTap: () => _pilihTanggalDanJam(context),
+                    validator: (value) => _selectedDateTime == null ? 'Waktu tidak boleh kosong' : null,
                   ),
                   const SizedBox(height: 16),
                   // Dropdown Besar Pembukaan
                   DropdownButtonFormField<int>(
                     value: _selectedPembukaan,
                     decoration: InputDecoration(
-                      labelText: 'Besar Pembukaan',
+                      labelText: 'Besar Pembukaan (cm)',
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     hint: const Text('Pilih Pembukaan'),
@@ -453,12 +860,12 @@ class _TambahCatatanScreenState extends State<TambahCatatanScreen> {
                   DropdownButtonFormField<int>(
                     value: _selectedPenurunan,
                     decoration: InputDecoration(
-                      labelText: 'Besar Penurunan',
+                      labelText: 'Besar Penurunan (per 5)',
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     hint: const Text('Pilih Penurunan'),
-                    items: List.generate(5, (index) => index)
-                        .map((val) => DropdownMenuItem(value: val, child: Text('$val')))
+                    items: List.generate(6, (index) => index)
+                        .map((val) => DropdownMenuItem(value: val, child: Text('$val/5')))
                         .toList(),
                     onChanged: (value) => setState(() => _selectedPenurunan = value),
                     validator: (value) => value == null ? 'Penurunan tidak boleh kosong' : null,
@@ -467,7 +874,7 @@ class _TambahCatatanScreenState extends State<TambahCatatanScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: _simpanData,
+                      onPressed: _isLoading ? null : _simpanData,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF8E44AD),
                         padding: const EdgeInsets.symmetric(vertical: 15),
@@ -475,7 +882,9 @@ class _TambahCatatanScreenState extends State<TambahCatatanScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: const Text('Simpan', style: TextStyle(color: Colors.white, fontSize: 16)),
+                      child: _isLoading
+                          ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                          : const Text('Simpan', style: TextStyle(color: Colors.white, fontSize: 16)),
                     ),
                   ),
                 ],
