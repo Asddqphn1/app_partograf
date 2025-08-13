@@ -29,7 +29,6 @@ class _HomeState extends State<Home> {
   }
 
   Future<void> _navigateToPartograf(String userId, String pasienId) async {
-    // Tampilkan dialog loading
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -51,41 +50,88 @@ class _HomeState extends State<Home> {
     );
 
     try {
-      // Ambil data dari sub-collection 'catatan_serviks'
-      final snapshot = await FirebaseFirestore.instance
+      // 1. Ambil SEMUA dokumen dari dalam sub-koleksi
+      final querySnapshot = await FirebaseFirestore.instance
           .collection('user')
-          .doc(widget.user)
+          .doc(userId)
           .collection('pasien')
           .doc(pasienId)
-          .collection(
-            'catatan_serviks',
-          ) // Pastikan nama sub-collection ini benar
-          .orderBy('jam_pemeriksaan')
+          .collection('kemajuan_persalinan')
+          .limit(1) // Karena sepertinya hanya ada satu dokumen di dalamnya
           .get();
 
-      // Ubah setiap dokumen menjadi objek CatatanServiks
-      final List<CatatanServiks> catatanList = snapshot.docs
-          .map((doc) => CatatanServiks.fromMap(doc.data()))
-          .toList();
+      if (mounted) Navigator.of(context).pop();
 
-      if (mounted) Navigator.of(context).pop(); // Tutup dialog loading
+      // 2. Cek apakah ada dokumen di dalam sub-koleksi tersebut
+      if (querySnapshot.docs.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Dokumen kemajuan persalinan tidak ditemukan."),
+            ),
+          );
+        }
+        return;
+      }
 
-      // Navigasi ke halaman grafik dengan membawa data yang sudah diambil
-      if (mounted) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => PartografView(dataPemeriksaan: catatanList),
-          ),
+      // 3. Ambil dokumen PERTAMA dari hasil query
+      final docSnapshot = querySnapshot.docs.first;
+      final data = docSnapshot.data();
+
+      // 4. Ambil ARRAY 'pembukaan_serviks' dari data dokumen tersebut
+      if (data.containsKey('pembukaan_serviks') &&
+          data['pembukaan_serviks'] is List) {
+        final List<dynamic> listData = data['pembukaan_serviks'];
+
+        if (listData.isEmpty) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text("Tidak ada data pemeriksaan untuk ditampilkan."),
+              ),
+            );
+          }
+          return;
+        }
+
+        // 5. Ubah setiap item di array menjadi objek CatatanServiks
+        final List<CatatanServiks> catatanList = listData
+            .map((item) => CatatanServiks.fromMap(item as Map<String, dynamic>))
+            .toList();
+
+        // Urutkan di sisi klien
+        catatanList.sort(
+          (a, b) => a.jamPemeriksaan.compareTo(b.jamPemeriksaan),
         );
+
+        // 6. Navigasi ke halaman grafik
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => PartografView(dataPemeriksaan: catatanList),
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                "Field 'pembukaan_serviks' tidak ditemukan atau formatnya salah.",
+              ),
+            ),
+          );
+        }
       }
     } catch (e) {
-      if (mounted) Navigator.of(context).pop(); // Tutup dialog loading
+      if (mounted) Navigator.of(context).pop();
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text("Gagal mengambil data: $e")));
     }
   }
+
   @override
   Widget build(BuildContext context) {
     DocumentReference userDoc = widget.firestore
@@ -115,7 +161,7 @@ class _HomeState extends State<Home> {
               String userEmail = data['email'] ?? 'Tidak ada email';
 
               final List<Widget> _pages = <Widget>[
-                // Page 0: Home Screen (navigates to DetailPasien)
+                // Page 0: Home Screen
                 Stack(
                   children: [
                     _buildHeader(userName, userEmail, context),
@@ -147,9 +193,8 @@ class _HomeState extends State<Home> {
                     automaticallyImplyLeading: false,
                   ),
                   body: _buildPatientList(
-                    // PERUBAHAN DI SINI: Memanggil fungsi _navigateToPartograf
                     onPatientTap: (userId, pasienId) {
-                      _navigateToPartograf(widget.user, pasienId);
+                      _navigateToPartograf(userId, pasienId);
                     },
                   ),
                 ),
@@ -182,7 +227,8 @@ class _HomeState extends State<Home> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => InputPasien(userId: widget.user,),
+                              builder: (context) =>
+                                  InputPasien(userId: widget.user),
                             ),
                           );
                         },
@@ -211,7 +257,7 @@ class _HomeState extends State<Home> {
   }) {
     final Stream<QuerySnapshot> pasienStream = FirebaseFirestore.instance
         .collection('user')
-        .doc(widget.user) // Ganti dengan ID user yang sesuai
+        .doc(widget.user)
         .collection('pasien')
         .snapshots();
 
@@ -509,24 +555,4 @@ class HeaderClipper extends CustomClipper<Path> {
   bool shouldReclip(CustomClipper<Path> oldClipper) {
     return false;
   }
-}
-
-@override
-Path getClip(Size size) {
-  var path = Path();
-  path.lineTo(0, size.height - 50);
-  path.quadraticBezierTo(
-    size.width / 2,
-    size.height,
-    size.width,
-    size.height - 50,
-  );
-  path.lineTo(size.width, 0);
-  path.close();
-  return path;
-}
-
-@override
-bool shouldReclip(CustomClipper<Path> oldClipper) {
-  return false;
 }
