@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Partograf</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto; /* Memungkinkan scroll jika konten lebih besar */
+        }
+        #chartContainer {
+            min-width: 800px; /* Lebar minimum agar tidak terlalu sempit saat di-zoom out */
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="chartContainer">
+        <canvas id="partografChart"></canvas>
+    </div>
+
+    <script>
+        const ctx = document.getElementById('partografChart').getContext('2d');
+
+        // Garis Waspada (Alert Line) - Statis
+        const alertLine = [
+            {x: 0, y: 4}, {x: 1, y: 5}, {x: 2, y: 6}, {x: 3, y: 7},
+            {x: 4, y: 8}, {x: 5, y: 9}, {x: 6, y: 10}
+        ];
+
+        // Garis Bertindak (Action Line) - Statis, 4 jam setelah garis waspada
+        const actionLine = [
+            {x: 4, y: 4}, {x: 5, y: 5}, {x: 6, y: 6}, {x: 7, y: 7},
+            {x: 8, y: 8}, {x: 9, y: 9}, {x: 10, y: 10}
+        ];
+
+        const partografChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                datasets: [
+                    {
+                        label: 'Pembukaan Serviks (cm)',
+                        borderColor: 'purple', // Warna ungu gelap
+                        backgroundColor: 'purple',
+                        data: [], // Data akan diisi dari Flutter
+                        fill: false,
+                        pointRadius: 5,
+                        pointHoverRadius: 7,
+                        showLine: true
+                    },
+                    {
+                        label: 'Penurunan Kepala',
+                        borderColor: 'green', // Warna hijau
+                        backgroundColor: 'green',
+                        data: [], // Data akan diisi dari Flutter
+                        fill: false,
+                        pointRadius: 5,
+                        pointHoverRadius: 7,
+                        showLine: true
+                    },
+                    {
+                        label: 'Garis Waspada',
+                        borderColor: 'orange',
+                        backgroundColor: 'orange',
+                        data: alertLine,
+                        fill: false,
+                        pointRadius: 0,
+                        borderDash: [5, 5], // Garis putus-putus
+                        showLine: true
+                    },
+                    {
+                        label: 'Garis Bertindak',
+                        borderColor: 'red',
+                        backgroundColor: 'red',
+                        data: actionLine,
+                        fill: false,
+                        pointRadius: 0,
+                        borderDash: [5, 5], // Garis putus-putus
+                        showLine: true
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        type: 'linear', // Tipe linear karena kita menggunakan jam sebagai angka
+                        position: 'bottom',
+                        title: {
+                            display: true,
+                            text: 'Waktu Pemeriksaan (Jam)'
+                        },
+                        min: 0,
+                        max: 16, // Sesuai partograf 16 jam
+                        ticks: {
+                            stepSize: 1,
+                            callback: function(value, index, values) {
+                                // Fungsi ini akan menerima label waktu dari Flutter
+                                if (window.chartLabels && window.chartLabels[value]) {
+                                    return window.chartLabels[value];
+                                }
+                                return value; // Fallback jika label tidak ada
+                            }
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Pembukaan (cm) / Penurunan'
+                        },
+                        min: 0,
+                        max: 10, // Pembukaan maksimal 10 cm
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            title: function(context) {
+                                const dataIndex = context[0].dataIndex;
+                                const datasetIndex = context[0].datasetIndex;
+                                const timeLabel = partografChart.options.scales.x.ticks.callback(context[0].parsed.x);
+                                return `Jam: ${timeLabel}`;
+                            },
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                label += `${context.parsed.y} cm`;
+                                return label;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Fungsi ini akan dipanggil dari Flutter untuk update data
+        function updateChart(pembukaanData, penurunanData, labels) {
+            // Menghitung selisih jam dari data pertama sebagai titik nol
+            const startTime = new Date(pembukaanData[0].jam_pemeriksaan).getTime();
+
+            const pembukaanChartData = pembukaanData.map(item => ({
+                x: (new Date(item.jam_pemeriksaan).getTime() - startTime) / (1000 * 60 * 60), // Konversi ke jam
+                y: item.besar_pembukaan
+            }));
+
+            const penurunanChartData = penurunanData.map(item => ({
+                x: (new Date(item.jam_pemeriksaan).getTime() - startTime) / (1000 * 60 * 60),
+                y: item.besar_penurunan
+            }));
+
+            // Menyimpan label untuk sumbu X
+            window.chartLabels = {};
+            labels.forEach(item => {
+                const hourDiff = (new Date(item.jam).getTime() - startTime) / (1000 * 60 * 60);
+                window.chartLabels[Math.round(hourDiff)] = item.label;
+            });
+            
+            partografChart.data.datasets[0].data = pembukaanChartData;
+            partografChart.data.datasets[1].data = penurunanChartData;
+            partografChart.update();
+        }
+    </script>
+</body>
+</html>
