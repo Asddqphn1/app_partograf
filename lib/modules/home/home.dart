@@ -14,6 +14,7 @@ class Home extends StatefulWidget {
   @override
   State<Home> createState() => _HomeState();
 }
+
 class _HomeState extends State<Home> {
   int _selectedIndex = 0;
 
@@ -25,8 +26,9 @@ class _HomeState extends State<Home> {
 
   @override
   Widget build(BuildContext context) {
-
-    DocumentReference userDoc = widget.firestore.collection('user').doc(widget.userId);
+    DocumentReference userDoc = widget.firestore
+        .collection('user')
+        .doc(widget.userId);
 
     return FutureBuilder<DocumentSnapshot>(
       future: userDoc.get(),
@@ -45,7 +47,8 @@ class _HomeState extends State<Home> {
         }
 
         if (snapshot.hasData && snapshot.data!.exists) {
-          Map<String, dynamic> data = snapshot.data!.data() as Map<String, dynamic>;
+          Map<String, dynamic> data =
+              snapshot.data!.data() as Map<String, dynamic>;
           String userName = data['nama'] ?? 'Bidan'; // Ambil nama user
 
           // --- UI UTAMA DIBANGUN DI SINI ---
@@ -58,7 +61,8 @@ class _HomeState extends State<Home> {
                 Padding(
                   // Beri padding atas agar konten tidak tertutup header & search bar
                   padding: const EdgeInsets.only(top: 220.0),
-                  child: _buildPatientList(), // Ganti dengan daftar pasien Anda nanti
+                  child:
+                      _buildPatientList(), // Ganti dengan daftar pasien Anda nanti
                 ),
 
                 // Search Bar diposisikan di atas tumpukan
@@ -92,7 +96,8 @@ class _HomeState extends State<Home> {
               backgroundColor: Color(0xFFF8ABEB),
               child: const Icon(Icons.add, size: 30, color: Colors.white),
             ),
-            floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+            floatingActionButtonLocation:
+                FloatingActionButtonLocation.centerDocked,
           );
         }
 
@@ -126,10 +131,7 @@ class _HomeState extends State<Home> {
                 children: [
                   const Text(
                     'Selamat Pagi',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 18,
-                    ),
+                    style: TextStyle(color: Colors.white70, fontSize: 18),
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -148,7 +150,11 @@ class _HomeState extends State<Home> {
               'assets/images/bidan.png',
               height: 100,
               errorBuilder: (context, error, stackTrace) {
-                return const Icon(Icons.person, size: 80, color: Colors.white24);
+                return const Icon(
+                  Icons.person,
+                  size: 80,
+                  color: Colors.white24,
+                );
               },
             ),
           ],
@@ -235,7 +241,7 @@ class _HomeState extends State<Home> {
           itemBuilder: (context, index) {
             final doc = documents[index];
             final data = doc.data() as Map<String, dynamic>;
-            String userId = 'QfAsyIkRTFuvNSy5YRaH' ;
+            String userId = 'QfAsyIkRTFuvNSy5YRaH';
             String pasienId = doc.id;
 
             // Logika untuk memformat tanggal
@@ -250,12 +256,17 @@ class _HomeState extends State<Home> {
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => DetailPasien(pasienId: pasienId, userId: userId,)),
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        DetailPasien(pasienId: pasienId, userId: userId),
+                  ),
                 );
               },
               borderRadius: BorderRadius.circular(15),
               child: Card(
-                margin: const EdgeInsets.symmetric(vertical: 4), // Margin vertikal lebih kecil
+                margin: const EdgeInsets.symmetric(
+                  vertical: 4,
+                ), // Margin vertikal lebih kecil
                 elevation: 5,
                 color: Colors.transparent, // Biarkan container yang menghias
                 shape: RoundedRectangleBorder(
@@ -275,7 +286,11 @@ class _HomeState extends State<Home> {
                           'assets/images/pasien.png',
                           height: 100,
                           errorBuilder: (context, error, stackTrace) {
-                            return const Icon(Icons.person, size: 80, color: Colors.white24);
+                            return const Icon(
+                              Icons.person,
+                              size: 80,
+                              color: Colors.white24,
+                            );
                           },
                         ),
                         const SizedBox(width: 16),
@@ -325,8 +340,8 @@ class HeaderClipper extends CustomClipper<Path> {
     path.lineTo(0, size.height - 50); // Mulai dari kiri bawah (dengan offset)
     path.quadraticBezierTo(
       size.width / 2, // Titik kontrol tengah
-      size.height,    // Puncak lengkungan
-      size.width,     // Titik akhir di kanan bawah
+      size.height, // Puncak lengkungan
+      size.width, // Titik akhir di kanan bawah
       size.height - 50,
     );
     path.lineTo(size.width, 0); // Garis ke kanan atas

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:partograf/modules/home/home.dart';
+import 'package:partograf/auth/auth_gate.dart';
+import 'package:partograf/auth/auth_service.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -26,7 +27,7 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
 
-      home: Home(),
+      home: AuthGate(), // Gunakan AuthGate untuk mengelola autentikasi
     );
   }
 }
