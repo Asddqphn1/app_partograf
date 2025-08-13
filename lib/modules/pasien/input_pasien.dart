@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 class InputPasien extends StatefulWidget {
-  const InputPasien({super.key});
+  String userId; 
+  InputPasien({super.key, required this.userId});
 
   @override
   State<InputPasien> createState() => _InputPasienState();
@@ -88,7 +89,7 @@ class _InputPasienState extends State<InputPasien> {
       };
 
       try {
-        await FirebaseFirestore.instance.collection('user').doc('QfAsyIkRTFuvNSy5YRaH').collection('pasien').add(dataPasien);
+        await FirebaseFirestore.instance.collection('user').doc(widget.userId).collection('pasien').add(dataPasien);
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Data pasien berhasil disimpan!'), backgroundColor: Colors.green));
         Navigator.pop(context);
