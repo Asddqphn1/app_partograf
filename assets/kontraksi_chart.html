@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Grafik Kontraksi</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            margin: 0;
+            padding: 16px;
+            background-color: #f7f7f7;
+            /* Penting: Memungkinkan body untuk scroll horizontal */
+            overflow-x: auto;
+        }
+        /* Wrapper ini memastikan konten di dalamnya bisa lebih lebar dari layar */
+        .chart-wrapper {
+            display: inline-block;
+            min-width: 100%;
+        }
+        .legend {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+        .legend-color {
+            width: 18px;
+            height: 18px;
+            border: 1px solid #ccc;
+        }
+        .main-content {
+            display: flex;
+        }
+        .grid-cell {
+            width: 30px;
+            height: 30px;
+            border-top: 1px solid #ccc;
+            border-right: 1px solid #ccc;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column-reverse;
+        }
+        .contraction-fill {
+            width: 100%;
+            height: 100%;
+        }
+        #chart-container {
+            display: grid;
+            border-left: 2px solid #333;
+            border-bottom: 2px solid #333;
+        }
+        #time-axis-container {
+            display: grid;
+            border-left: 2px solid #333;
+        }
+        .time-label {
+            font-size: 12px;
+            font-weight: bold;
+            text-align: center;
+            box-sizing: border-box;
+            width: 60px; /* Lebar 2 kolom */
+            padding-top: 5px;
+            border-right: 1px solid #ccc;
+        }
+        #y-axis-container {
+            display: flex;
+            flex-direction: column;
+            padding-right: 8px;
+        }
+        .y-axis-label {
+            font-size: 14px;
+            font-weight: bold;
+            color: #333;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .color-light-blue { background-color: #a0c4ff; }
+        .color-dark-blue { background-color: #4a4e69; }
+        .color-black { background-color: #22223b; }
+    </style>
+</head>
+<body>
+<div class="legend">
+    <div class="legend-item">
+        <div class="legend-color" style="background-color: #a0c4ff;"></div>
+        <span>Durasi &lt; 20 dtk</span>
+    </div>
+    <div class="legend-item">
+        <div class="legend-color" style="background-color: #4a4e69;"></div>
+        <span>Durasi 20-40 dtk</span>
+    </div>
+    <div class="legend-item">
+        <div class="legend-color" style="background-color: #22223b;"></div>
+        <span>Durasi &gt; 40 dtk</span>
+    </div>
+</div>
+
+<div class="chart-wrapper">
+    <div class="main-content">
+        <div id="y-axis-container"></div>
+        <div style="width: 100%;">
+            <div id="chart-container"></div>
+            <div id="time-axis-container"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function renderPartograph(contractionData, pemeriksaanData) {
+        const chartContainer = document.getElementById('chart-container');
+        const timeAxisContainer = document.getElementById('time-axis-container');
+        const yAxisContainer = document.getElementById('y-axis-container');
+
+        chartContainer.innerHTML = '';
+        timeAxisContainer.innerHTML = '';
+        yAxisContainer.innerHTML = '';
+
+        if (!contractionData || contractionData.length === 0) {
+            chartContainer.innerHTML = '<p style="padding: 20px;">Belum ada data kontraksi untuk ditampilkan.</p>';
+            return;
+        }
+
+        const cellSize = 30;
+        const numRows = 5;
+
+        const allData = [...contractionData, ...(pemeriksaanData || []).map(p => ({ jamMulai: p.jam_pemeriksaan }))];
+        if (allData.length === 0) return;
+
+        const allDates = allData.map(d => new Date(d.jamMulai)).sort((a, b) => a - b);
+        const firstEventTime = allDates[0];
+
+        // =======================================================================
+        // PERBAIKAN LOGIKA WAKTU & LEBAR GRAFIK
+        // =======================================================================
+
+        // 1. Tentukan waktu mulai grid (dibulatkan) untuk KALKULASI POSISI
+        // Ini penting agar data masuk ke kolom yang benar.
+        let calculationStartTime = new Date(firstEventTime);
+        calculationStartTime.setMinutes(Math.floor(calculationStartTime.getMinutes() / 30) * 30, 0, 0);
+
+        // 2. Tentukan jumlah kolom. Minimal 64 kolom (32 jam) untuk scrolling
+        const numCols = 32;
+
+        // 3. Generate label sumbu Y (tidak berubah)
+        for (let i = numRows; i >= 1; i--) {
+            const label = document.createElement('div');
+            label.classList.add('y-axis-label');
+            label.innerText = i;
+            yAxisContainer.appendChild(label);
+        }
+
+        // Atur style grid
+        chartContainer.style.gridTemplateColumns = `repeat(${numCols}, ${cellSize}px)`;
+        chartContainer.style.gridTemplateRows = `repeat(${numRows}, ${cellSize}px)`;
+        timeAxisContainer.style.gridTemplateColumns = `repeat(${numCols / 2}, ${cellSize * 2}px)`;
+
+        // Buat sel grid
+        const cells = [];
+        for (let i = 0; i < numRows * numCols; i++) {
+            const cell = document.createElement('div');
+            cell.classList.add('grid-cell');
+            chartContainer.appendChild(cell);
+            cells.push(cell);
+        }
+
+        // 4. Generate label waktu sumbu X berdasarkan WAKTU ASLI
+        // Waktu untuk label dimulai dari waktu data pertama, BUKAN yang dibulatkan.
+        let labelTime = new Date(firstEventTime);
+        for (let i = 0; i < numCols / 2; i++) {
+            const label = document.createElement('div');
+            label.classList.add('time-label');
+            const hours = labelTime.getHours().toString().padStart(2, '0');
+            const minutes = labelTime.getMinutes().toString().padStart(2, '0');
+            label.innerText = `${hours}:${minutes}`; // Hasilnya: "21:43", "22:43", dst.
+            timeAxisContainer.appendChild(label);
+            // Tambah 1 jam untuk label berikutnya
+            labelTime.setHours(labelTime.getHours() + 1);
+        }
+
+        const contractions = contractionData.map(d => ({
+            ...d,
+            jamMulai: new Date(d.jamMulai),
+            jamSelesai: new Date(d.jamSelesai)
+        }));
+
+        // Kelompokkan kontraksi per 30 menit
+        const groupedBy30Min = {};
+        contractions.forEach(c => {
+            // Hitung posisi kolom berdasarkan `calculationStartTime` yang sudah dibulatkan
+            const minutesFromStart = (c.jamMulai - calculationStartTime) / 60000;
+            const colIndex = Math.floor(minutesFromStart / 30);
+
+            if (!groupedBy30Min[colIndex]) {
+                groupedBy30Min[colIndex] = [];
+            }
+            const duration = (c.jamSelesai - c.jamMulai) / 1000;
+            groupedBy30Min[colIndex].push(duration);
+        });
+
+        // Isi sel dengan warna (tidak berubah)
+        for (const colIndex in groupedBy30Min) {
+            const durations = groupedBy30Min[colIndex];
+            const count = durations.length;
+
+            for (let i = 0; i < count && i < numRows; i++) {
+                const individualDuration = durations[i];
+                let colorClass = '';
+
+                if (individualDuration < 20) {
+                    colorClass = 'color-light-blue';
+                } else if (individualDuration <= 40) {
+                    colorClass = 'color-dark-blue';
+                } else {
+                    colorClass = 'color-black';
+                }
+
+                const rowIndex = numRows - 1 - i;
+                const cellIndex = rowIndex * numCols + parseInt(colIndex);
+                if (cells[cellIndex]) {
+                    const fillDiv = document.createElement('div');
+                    fillDiv.classList.add('contraction-fill', colorClass);
+                    cells[cellIndex].appendChild(fillDiv);
+                }
+            }
+        }
+    }
+</script>
+</body>
+</html>
