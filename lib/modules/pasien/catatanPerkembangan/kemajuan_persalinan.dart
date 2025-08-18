@@ -333,7 +333,7 @@ class _KemajuanPersalinanState extends State<KemajuanPersalinan> with SingleTick
     );
   }
 
-  // ===== PERUBAHAN: Helper ini dibuat lebih umum =====
+  // ===== PERUBAHAN: Padding bawah ditambah agar tombol tidak tertutup navbar sistem =====
   Widget _buildContentWithButton({
     required Widget content,
     required VoidCallback onPressed,
@@ -343,15 +343,19 @@ class _KemajuanPersalinanState extends State<KemajuanPersalinan> with SingleTick
       children: [
         Expanded(child: content),
         Padding(
-          padding: const EdgeInsets.only(bottom: 24.0, top: 10.0),
-          child: ElevatedButton.icon(
-            onPressed: onPressed,
-            icon: const Icon(Icons.add, color: Colors.white),
-            label: Text(labelTombol, style: const TextStyle(color: Colors.white)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFF8ABEB),
-              padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 40),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          // Padding bawah ditambah dari 24.0 menjadi 48.0
+          padding: const EdgeInsets.only(bottom: 48.0, top: 10.0, left: 20.0, right: 20.0),
+          child: SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: onPressed,
+              icon: const Icon(Icons.add, color: Colors.white),
+              label: Text(labelTombol, style: const TextStyle(color: Colors.white, fontSize: 16)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFF8ABEB),
+                padding: const EdgeInsets.symmetric(vertical: 15),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
             ),
           ),
         ),
@@ -896,3 +900,4 @@ class _TambahCatatanScreenState extends State<TambahCatatanScreen> {
     );
   }
 }
+
