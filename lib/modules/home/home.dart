@@ -21,6 +21,24 @@ class Home extends StatefulWidget {
 
 class _HomeState extends State<Home> {
   int _selectedIndex = 0;
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(() {
+      setState(() {
+        _searchQuery = _searchController.text;
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   void _onItemTapped(int index) {
     setState(() {
@@ -50,19 +68,17 @@ class _HomeState extends State<Home> {
     );
 
     try {
-      // 1. Ambil SEMUA dokumen dari dalam sub-koleksi
       final querySnapshot = await FirebaseFirestore.instance
           .collection('user')
           .doc(userId)
           .collection('pasien')
           .doc(pasienId)
           .collection('kemajuan_persalinan')
-          .limit(1) // Karena sepertinya hanya ada satu dokumen di dalamnya
+          .limit(1)
           .get();
 
       if (mounted) Navigator.of(context).pop();
 
-      // 2. Cek apakah ada dokumen di dalam sub-koleksi tersebut
       if (querySnapshot.docs.isEmpty) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -74,11 +90,9 @@ class _HomeState extends State<Home> {
         return;
       }
 
-      // 3. Ambil dokumen PERTAMA dari hasil query
       final docSnapshot = querySnapshot.docs.first;
       final data = docSnapshot.data();
 
-      // 4. Ambil ARRAY 'pembukaan_serviks' dari data dokumen tersebut
       if (data.containsKey('pembukaan_serviks') &&
           data['pembukaan_serviks'] is List) {
         final List<dynamic> listData = data['pembukaan_serviks'];
@@ -94,17 +108,14 @@ class _HomeState extends State<Home> {
           return;
         }
 
-        // 5. Ubah setiap item di array menjadi objek CatatanServiks
         final List<CatatanServiks> catatanList = listData
             .map((item) => CatatanServiks.fromMap(item as Map<String, dynamic>))
             .toList();
 
-        // Urutkan di sisi klien
         catatanList.sort(
-          (a, b) => a.jamPemeriksaan.compareTo(b.jamPemeriksaan),
+              (a, b) => a.jamPemeriksaan.compareTo(b.jamPemeriksaan),
         );
 
-        // 6. Navigasi ke halaman grafik
         if (mounted) {
           Navigator.push(
             context,
@@ -142,113 +153,123 @@ class _HomeState extends State<Home> {
       future: userDoc.get(),
       builder:
           (BuildContext context, AsyncSnapshot<DocumentSnapshot> snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Scaffold(
-                body: Center(child: CircularProgressIndicator()),
-              );
-            }
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
 
-            if (snapshot.hasError) {
-              return const Scaffold(
-                body: Center(child: Text('Gagal memuat data.')),
-              );
-            }
+        if (snapshot.hasError) {
+          return const Scaffold(
+            body: Center(child: Text('Gagal memuat data.')),
+          );
+        }
 
-            if (snapshot.hasData && snapshot.data!.exists) {
-              Map<String, dynamic> data =
-                  snapshot.data!.data() as Map<String, dynamic>;
-              String userName = data['nama'] ?? 'Bidan';
-              String userEmail = data['email'] ?? 'Tidak ada email';
+        if (snapshot.hasData && snapshot.data!.exists) {
+          Map<String, dynamic> data =
+          snapshot.data!.data() as Map<String, dynamic>;
+          String userName = data['nama'] ?? 'Bidan';
+          String userEmail = data['email'] ?? 'Tidak ada email';
 
-              final List<Widget> _pages = <Widget>[
-                // Page 0: Home Screen
-                Stack(
-                  children: [
-                    _buildHeader(userName, userEmail, context),
-                    Padding(
-                      padding: const EdgeInsets.only(top: 220.0),
-                      child: _buildPatientList(
-                        onPatientTap: (userId, pasienId) {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => DetailPasien(
-                                pasienId: pasienId,
-                                userId: userId,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    _buildSearchBar(),
-                  ],
-                ),
-
-                // Page 1: Partograf Screen
-                Scaffold(
-                  appBar: AppBar(
-                    title: const Text('Pilih Pasien untuk Partograf'),
-                    backgroundColor: const Color(0xFFF8ABEB),
-                    automaticallyImplyLeading: false,
-                  ),
-                  body: _buildPatientList(
+          return Scaffold(
+            backgroundColor: const Color(0xFFF4F6F9),
+            body: Stack(
+              children: [
+                // The patient list is now the base layer
+                Padding(
+                  padding: const EdgeInsets.only(top: 220.0),
+                  child: _buildPatientList(
                     onPatientTap: (userId, pasienId) {
-                      _navigateToPartograf(userId, pasienId);
+                      if (_selectedIndex == 0) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => DetailPasien(
+                              pasienId: pasienId,
+                              userId: userId,
+                            ),
+                          ),
+                        );
+                      } else {
+                        _navigateToPartograf(userId, pasienId);
+                      }
                     },
                   ),
                 ),
-              ];
-
-              return Scaffold(
-                backgroundColor: const Color(0xFFF4F6F9),
-                body: _pages[_selectedIndex],
-                bottomNavigationBar: BottomNavigationBar(
-                  currentIndex: _selectedIndex,
-                  onTap: _onItemTapped,
-                  items: const [
-                    BottomNavigationBarItem(
-                      icon: Icon(Icons.home),
-                      label: 'Home',
-                    ),
-                    BottomNavigationBarItem(
-                      icon: Icon(Icons.graphic_eq),
-                      label: 'Partograf',
-                    ),
+                // The header is layered on top
+                _buildHeader(userName, userEmail, context),
+              ],
+            ),
+            floatingActionButton: FloatingActionButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        InputPasien(userId: widget.user),
+                  ),
+                );
+              },
+              backgroundColor: const Color(0xFFF8ABEB),
+              child: const Icon(
+                Icons.add,
+                size: 30,
+                color: Colors.white,
+              ),
+            ),
+            floatingActionButtonLocation:
+            FloatingActionButtonLocation.centerDocked,
+            bottomNavigationBar: BottomAppBar(
+              shape: const CircularNotchedRectangle(),
+              notchMargin: 8.0,
+              child: SizedBox(
+                height: 60, // Constrain the height of the BottomAppBar
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: <Widget>[
+                    _buildNavItem(
+                        icon: Icons.home, label: 'Home', index: 0),
+                    _buildNavItem(
+                        icon: Icons.graphic_eq, label: 'Partograf', index: 1),
                   ],
-                  type: BottomNavigationBarType.fixed,
-                  backgroundColor: Colors.white,
-                  selectedItemColor: Colors.blue,
-                  unselectedItemColor: Colors.grey,
                 ),
-                floatingActionButton: _selectedIndex == 0
-                    ? FloatingActionButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  InputPasien(userId: widget.user),
-                            ),
-                          );
-                        },
-                        backgroundColor: const Color(0xFFF8ABEB),
-                        child: const Icon(
-                          Icons.add,
-                          size: 30,
-                          color: Colors.white,
-                        ),
-                      )
-                    : null,
-                floatingActionButtonLocation:
-                    FloatingActionButtonLocation.centerDocked,
-              );
-            }
+              ),
+            ),
+          );
+        }
 
-            return const Scaffold(
-              body: Center(child: Text('User tidak ditemukan.')),
-            );
-          },
+        return const Scaffold(
+          body: Center(child: Text('User tidak ditemukan.')),
+        );
+      },
+    );
+  }
+
+  Widget _buildNavItem(
+      {required IconData icon, required String label, required int index}) {
+    // 4. Fixed overflow by using Flexible and reducing font size
+    return Expanded(
+      child: InkWell(
+        onTap: () => _onItemTapped(index),
+        borderRadius: BorderRadius.circular(30),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            Icon(
+              icon,
+              color: _selectedIndex == index ? Colors.blue : Colors.grey,
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12, // Reduced font size
+                color: _selectedIndex == index ? Colors.blue : Colors.grey,
+              ),
+            )
+          ],
+        ),
+      ),
     );
   }
 
@@ -270,15 +291,23 @@ class _HomeState extends State<Home> {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
-        final documents = snapshot.data!.docs;
+
+        final documents = snapshot.data!.docs.where((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          final name = data['nama']?.toString().toLowerCase() ?? '';
+          final query = _searchQuery.toLowerCase();
+          return name.contains(query);
+        }).toList();
+
         if (documents.isEmpty) {
+          if (_searchQuery.isNotEmpty) {
+            return const Center(child: Text("Pasien tidak ditemukan."));
+          }
           return const Center(child: Text("Belum ada data pasien."));
         }
 
         return ListView.separated(
-          padding: _selectedIndex == 0
-              ? const EdgeInsets.fromLTRB(10, 20, 10, 20)
-              : const EdgeInsets.all(8.0),
+          padding: const EdgeInsets.fromLTRB(10, 20, 10, 80),
           itemCount: documents.length,
           separatorBuilder: (context, index) => const Divider(
             color: Color.fromARGB(255, 224, 224, 224),
@@ -322,7 +351,7 @@ class _HomeState extends State<Home> {
                           height: 80,
                           errorBuilder: (context, error, stackTrace) {
                             return const Icon(
-                              Icons.person_outline,
+                              Icons.person_outline_rounded,
                               size: 80,
                               color: Colors.grey,
                             );
@@ -366,12 +395,12 @@ class _HomeState extends State<Home> {
     );
   }
 
+  // 2. Redesigned Header Widget
   Widget _buildHeader(String bidanName, String email, BuildContext context) {
     return ClipPath(
       clipper: HeaderClipper(),
       child: Container(
-        height: 240,
-        padding: const EdgeInsets.fromLTRB(20, 40, 5, 0),
+        height: 240, // Increased height to accommodate search bar
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             colors: [Color(0xFFF8ABEB), Color(0xFFEDFADC)],
@@ -379,63 +408,108 @@ class _HomeState extends State<Home> {
             end: Alignment.bottomCenter,
           ),
         ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        child: Padding(
+          padding: const EdgeInsets.only(top: 40, left: 20, right: 20),
+          child: Column(
+            children: [
+              // 3. Top section moved up
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  const SizedBox(height: 10),
-                  Text(
-                    _getGreeting(),
-                    style: const TextStyle(color: Colors.white70, fontSize: 18),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Bidan $bidanName!',
-                    style: const TextStyle(
-                      color: Colors.black,
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (newContext) => Scaffold(
+                            appBar: AppBar(
+                              title: const Text('Profil'),
+                              backgroundColor: const Color(0xFFF8ABEB),
+                            ),
+                            body: _buildProfilePage(bidanName, email, context),
+                          ),
+                        ),
+                      );
+                    },
+                    child: const CircleAvatar(
+                      radius: 25,
+                      backgroundColor: Colors.white54,
+                      child: Icon(
+                        Icons.person_outline,
+                        size: 30,
+                        color: Color(0xFF2C2C6A),
+                      ),
                     ),
+                  ),
+                  const SizedBox(width: 15),
+                  // 1. Text wrapping fixed by using Flexible
+                  Flexible(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          _getGreeting(),
+                          style: const TextStyle(color: Colors.black54, fontSize: 16),
+                        ),
+                        Text(
+                          'Bidan $bidanName!',
+                          softWrap: true, // Ensures text wraps
+                          style: const TextStyle(
+                            color: Colors.black,
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Image.asset(
+                    'assets/images/bidan.png',
+                    height: 90,
+                    errorBuilder: (context, error, stackTrace) {
+                      return const Icon(
+                        Icons.person,
+                        size: 80,
+                        color: Colors.white24,
+                      );
+                    },
                   ),
                 ],
               ),
-            ),
-            IconButton(
-              icon: const Icon(
-                Icons.account_circle,
-                size: 40,
-                color: Colors.white,
-              ),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (newContext) => Scaffold(
-                      appBar: AppBar(
-                        title: const Text('Profil'),
-                        backgroundColor: const Color(0xFFF8ABEB),
+              const SizedBox(height: 20),
+              // 2. Search bar integrated into header
+              // 2. Widget dibungkus untuk menaikkan posisi
+              Transform.translate(
+                offset: const Offset(0, -12), // Menggeser ke atas sebanyak 12 piksel
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.4),
+                    borderRadius: BorderRadius.circular(30),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 5),
                       ),
-                      body: _buildProfilePage(bidanName, email, context),
+                    ],
+                  ),
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: const InputDecoration(
+                      hintText: 'Cari Nama',
+                      hintStyle: TextStyle(color: Color(0xFF999999)),
+                      prefixIcon: Icon(Icons.search, color: Color(0xFF999999)),
+                      border: InputBorder.none,
+                      // 1. Padding vertikal dikurangi untuk mengecilkan ukuran
+                      contentPadding: EdgeInsets.symmetric(vertical: 13.0, horizontal: 20.0),
                     ),
                   ),
-                );
-              },
-            ),
-            Image.asset(
-              'assets/images/bidan.png',
-              height: 100,
-              errorBuilder: (context, error, stackTrace) {
-                return const Icon(
-                  Icons.person,
-                  size: 80,
-                  color: Colors.white24,
-                );
-              },
-            ),
-          ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -454,70 +528,64 @@ class _HomeState extends State<Home> {
     }
   }
 
-  Widget _buildSearchBar() {
-    return Positioned(
-      top: 165,
-      left: 20,
-      right: 20,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(30),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, 5),
-            ),
-          ],
-        ),
-        child: const TextField(
-          decoration: InputDecoration(
-            hintText: 'Cari Nama',
-            icon: Icon(Icons.search, color: Colors.grey),
-            border: InputBorder.none,
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildProfilePage(String name, String email, BuildContext context) {
+    // Mengambil huruf pertama dari nama, atau 'B' jika nama kosong
+    String initial = name.isNotEmpty ? name[0].toUpperCase() : 'B';
+
     return Container(
-      alignment: Alignment.center,
-      padding: const EdgeInsets.all(30.0),
+      color: Colors.white, // Latar belakang putih untuk seluruh halaman
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.account_circle, size: 100, color: Colors.grey),
+          const Spacer(flex: 2),
+          // Lingkaran dengan huruf awal nama
+          CircleAvatar(
+            radius: 60,
+            backgroundColor: const Color(0xFFF8C9F5).withOpacity(0.5),
+            child: Text(
+              initial,
+              style: const TextStyle(
+                fontSize: 50,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF2C2C6A),
+              ),
+            ),
+          ),
           const SizedBox(height: 20),
+          // Nama dan Email
           Text(
             name,
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF2C2C6A)),
           ),
           const SizedBox(height: 8),
           Text(
             email,
             style: const TextStyle(fontSize: 16, color: Colors.black54),
           ),
-          const SizedBox(height: 40),
-          ElevatedButton(
-            onPressed: () {
-              _logout();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.redAccent,
-              padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
+          const Spacer(flex: 3),
+          // Tombol Logout
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 30.0),
+            child: ListTile(
+              onTap: () {
+                _logout();
+              },
+              leading: const Icon(Icons.logout, color: Colors.redAccent),
+              title: const Text(
+                'Log Out',
+                style: TextStyle(
+                  fontSize: 18,
+                  color: Colors.redAccent,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              tileColor: Colors.red.withOpacity(0.05),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(30),
+                borderRadius: BorderRadius.circular(10),
+                side: BorderSide(color: Colors.red.withOpacity(0.2)),
               ),
             ),
-            child: const Text(
-              'Logout',
-              style: TextStyle(fontSize: 18, color: Colors.white),
-            ),
           ),
+          const Spacer(flex: 1),
         ],
       ),
     );
@@ -529,7 +597,7 @@ class _HomeState extends State<Home> {
     if (mounted) {
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => const WelcomeScreen()),
-        (Route<dynamic> route) => false,
+            (Route<dynamic> route) => false,
       );
     }
   }
