@@ -8,6 +8,8 @@ import 'package:partograf/modules/pasien/catatanPerkembangan/kemajuan_persalinan
 import 'package:partograf/modules/pasien/detail_pasien.dart';
 import 'package:partograf/modules/pasien/input_pasien.dart';
 import 'package:partograf/modules/pasien/partograft_pasien/grapic.dart';
+import 'package:partograf/modules/pasien/partograft_pasien/kontraksi_graph.dart';
+
 
 class Home extends StatefulWidget {
   final String user;
@@ -24,9 +26,17 @@ class _HomeState extends State<Home> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
+  // ==========================================================
+  // ===== PERBAIKAN 2: Future untuk data user diinisialisasi di sini =====
+  // ==========================================================
+  late Future<DocumentSnapshot> _userFuture;
+
   @override
   void initState() {
     super.initState();
+    // Data user hanya akan diambil satu kali saat widget pertama kali dibuat.
+    _userFuture = widget.firestore.collection('user').doc(widget.user).get();
+
     _searchController.addListener(() {
       setState(() {
         _searchQuery = _searchController.text;
@@ -46,111 +56,24 @@ class _HomeState extends State<Home> {
     });
   }
 
-  Future<void> _navigateToPartograf(String userId, String pasienId) async {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return const Dialog(
-          child: Padding(
-            padding: EdgeInsets.all(20.0),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(width: 20),
-                Text("Mengambil data partograf..."),
-              ],
-            ),
-          ),
-        );
-      },
+  void _navigateToPartograf(String userId, String pasienId) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PilihGrafikScreen(
+          userId: userId,
+          pasienId: pasienId,
+        ),
+      ),
     );
-
-    try {
-      final querySnapshot = await FirebaseFirestore.instance
-          .collection('user')
-          .doc(userId)
-          .collection('pasien')
-          .doc(pasienId)
-          .collection('kemajuan_persalinan')
-          .limit(1)
-          .get();
-
-      if (mounted) Navigator.of(context).pop();
-
-      if (querySnapshot.docs.isEmpty) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text("Dokumen kemajuan persalinan tidak ditemukan."),
-            ),
-          );
-        }
-        return;
-      }
-
-      final docSnapshot = querySnapshot.docs.first;
-      final data = docSnapshot.data();
-
-      if (data.containsKey('pembukaan_serviks') &&
-          data['pembukaan_serviks'] is List) {
-        final List<dynamic> listData = data['pembukaan_serviks'];
-
-        if (listData.isEmpty) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text("Tidak ada data pemeriksaan untuk ditampilkan."),
-              ),
-            );
-          }
-          return;
-        }
-
-        final List<CatatanServiks> catatanList = listData
-            .map((item) => CatatanServiks.fromMap(item as Map<String, dynamic>))
-            .toList();
-
-        catatanList.sort(
-              (a, b) => a.jamPemeriksaan.compareTo(b.jamPemeriksaan),
-        );
-
-        if (mounted) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => PartografView(dataPemeriksaan: catatanList),
-            ),
-          );
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                "Field 'pembukaan_serviks' tidak ditemukan atau formatnya salah.",
-              ),
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) Navigator.of(context).pop();
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Gagal mengambil data: $e")));
-    }
   }
 
   @override
   Widget build(BuildContext context) {
-    DocumentReference userDoc = widget.firestore
-        .collection('user')
-        .doc(widget.user);
-
+    // FutureBuilder sekarang menggunakan _userFuture yang sudah diinisialisasi.
+    // Ini mencegah pengambilan data ulang setiap kali setState dipanggil.
     return FutureBuilder<DocumentSnapshot>(
-      future: userDoc.get(),
+      future: _userFuture,
       builder:
           (BuildContext context, AsyncSnapshot<DocumentSnapshot> snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -175,7 +98,6 @@ class _HomeState extends State<Home> {
             backgroundColor: const Color(0xFFF4F6F9),
             body: Stack(
               children: [
-                // The patient list is now the base layer
                 Padding(
                   padding: const EdgeInsets.only(top: 220.0),
                   child: _buildPatientList(
@@ -196,39 +118,23 @@ class _HomeState extends State<Home> {
                     },
                   ),
                 ),
-                // The header is layered on top
                 _buildHeader(userName, userEmail, context),
               ],
             ),
-            floatingActionButton: FloatingActionButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        InputPasien(userId: widget.user),
-                  ),
-                );
-              },
-              backgroundColor: const Color(0xFFF8ABEB),
-              child: const Icon(
-                Icons.add,
-                size: 30,
-                color: Colors.white,
-              ),
-            ),
-            floatingActionButtonLocation:
-            FloatingActionButtonLocation.centerDocked,
+            // ==========================================================
+            // ===== PERBAIKAN 1: FloatingActionButton dihapus =====
+            // ==========================================================
             bottomNavigationBar: BottomAppBar(
-              shape: const CircularNotchedRectangle(),
-              notchMargin: 8.0,
+              // shape dan notchMargin dihapus
               child: SizedBox(
-                height: 60, // Constrain the height of the BottomAppBar
+                height: 60,
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: <Widget>[
                     _buildNavItem(
                         icon: Icons.home, label: 'Home', index: 0),
+                    // Tombol tambah pasien yang baru ditambahkan di sini
+                    _buildAddPatientButton(),
                     _buildNavItem(
                         icon: Icons.graphic_eq, label: 'Partograf', index: 1),
                   ],
@@ -245,15 +151,45 @@ class _HomeState extends State<Home> {
     );
   }
 
+  // ==========================================================
+  // ===== WIDGET BARU UNTUK TOMBOL TAMBAH PASIEN =====
+  // ==========================================================
+  Widget _buildAddPatientButton() {
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => InputPasien(userId: widget.user),
+          ),
+        );
+      },
+      customBorder: const CircleBorder(),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: const BoxDecoration(
+          color: Color(0xFFF8ABEB),
+          shape: BoxShape.circle,
+        ),
+        child: const Icon(
+          Icons.add,
+          color: Colors.white,
+          size: 32,
+        ),
+      ),
+    );
+  }
+
   Widget _buildNavItem(
       {required IconData icon, required String label, required int index}) {
-    // 4. Fixed overflow by using Flexible and reducing font size
-    return Expanded(
-      child: InkWell(
-        onTap: () => _onItemTapped(index),
-        borderRadius: BorderRadius.circular(30),
+    return InkWell(
+      onTap: () => _onItemTapped(index),
+      borderRadius: BorderRadius.circular(30),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 16.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             Icon(
               icon,
@@ -263,7 +199,7 @@ class _HomeState extends State<Home> {
             Text(
               label,
               style: TextStyle(
-                fontSize: 12, // Reduced font size
+                fontSize: 12,
                 color: _selectedIndex == index ? Colors.blue : Colors.grey,
               ),
             )
@@ -395,12 +331,11 @@ class _HomeState extends State<Home> {
     );
   }
 
-  // 2. Redesigned Header Widget
   Widget _buildHeader(String bidanName, String email, BuildContext context) {
     return ClipPath(
       clipper: HeaderClipper(),
       child: Container(
-        height: 240, // Increased height to accommodate search bar
+        height: 240,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             colors: [Color(0xFFF8ABEB), Color(0xFFEDFADC)],
@@ -412,7 +347,6 @@ class _HomeState extends State<Home> {
           padding: const EdgeInsets.only(top: 40, left: 20, right: 20),
           child: Column(
             children: [
-              // 3. Top section moved up
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
@@ -442,7 +376,6 @@ class _HomeState extends State<Home> {
                     ),
                   ),
                   const SizedBox(width: 15),
-                  // 1. Text wrapping fixed by using Flexible
                   Flexible(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -454,7 +387,7 @@ class _HomeState extends State<Home> {
                         ),
                         Text(
                           'Bidan $bidanName!',
-                          softWrap: true, // Ensures text wraps
+                          softWrap: true,
                           style: const TextStyle(
                             color: Colors.black,
                             fontSize: 22,
@@ -479,10 +412,8 @@ class _HomeState extends State<Home> {
                 ],
               ),
               const SizedBox(height: 20),
-              // 2. Search bar integrated into header
-              // 2. Widget dibungkus untuk menaikkan posisi
               Transform.translate(
-                offset: const Offset(0, -12), // Menggeser ke atas sebanyak 12 piksel
+                offset: const Offset(0, -12),
                 child: Container(
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.4),
@@ -502,7 +433,6 @@ class _HomeState extends State<Home> {
                       hintStyle: TextStyle(color: Color(0xFF999999)),
                       prefixIcon: Icon(Icons.search, color: Color(0xFF999999)),
                       border: InputBorder.none,
-                      // 1. Padding vertikal dikurangi untuk mengecilkan ukuran
                       contentPadding: EdgeInsets.symmetric(vertical: 13.0, horizontal: 20.0),
                     ),
                   ),
@@ -529,15 +459,13 @@ class _HomeState extends State<Home> {
   }
 
   Widget _buildProfilePage(String name, String email, BuildContext context) {
-    // Mengambil huruf pertama dari nama, atau 'B' jika nama kosong
     String initial = name.isNotEmpty ? name[0].toUpperCase() : 'B';
 
     return Container(
-      color: Colors.white, // Latar belakang putih untuk seluruh halaman
+      color: Colors.white,
       child: Column(
         children: [
           const Spacer(flex: 2),
-          // Lingkaran dengan huruf awal nama
           CircleAvatar(
             radius: 60,
             backgroundColor: const Color(0xFFF8C9F5).withOpacity(0.5),
@@ -551,7 +479,6 @@ class _HomeState extends State<Home> {
             ),
           ),
           const SizedBox(height: 20),
-          // Nama dan Email
           Text(
             name,
             style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF2C2C6A)),
@@ -562,7 +489,6 @@ class _HomeState extends State<Home> {
             style: const TextStyle(fontSize: 16, color: Colors.black54),
           ),
           const Spacer(flex: 3),
-          // Tombol Logout
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 30.0),
             child: ListTile(
@@ -622,5 +548,230 @@ class HeaderClipper extends CustomClipper<Path> {
   @override
   bool shouldReclip(CustomClipper<Path> oldClipper) {
     return false;
+  }
+}
+
+class PilihGrafikScreen extends StatefulWidget {
+  final String userId;
+  final String pasienId;
+
+  const PilihGrafikScreen({
+    super.key,
+    required this.userId,
+    required this.pasienId,
+  });
+
+  @override
+  State<PilihGrafikScreen> createState() => _PilihGrafikScreenState();
+}
+
+class _PilihGrafikScreenState extends State<PilihGrafikScreen> {
+
+  Future<void> _navigateToGrafikServiks() async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return const Dialog(
+          child: Padding(
+            padding: EdgeInsets.all(20.0),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(width: 20),
+                Text("Mengambil data partograf..."),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    try {
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('user')
+          .doc(widget.userId)
+          .collection('pasien')
+          .doc(widget.pasienId)
+          .collection('kemajuan_persalinan')
+          .limit(1)
+          .get();
+
+      if (mounted) Navigator.of(context).pop();
+
+      if (querySnapshot.docs.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Dokumen kemajuan persalinan tidak ditemukan."),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+
+      final docSnapshot = querySnapshot.docs.first;
+      final data = docSnapshot.data();
+
+      if (data.containsKey('pembukaan_serviks') &&
+          data['pembukaan_serviks'] is List) {
+        final List<dynamic> listData = data['pembukaan_serviks'];
+
+        if (listData.isEmpty) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text("Tidak ada data pemeriksaan untuk ditampilkan."),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+          return;
+        }
+
+        final List<CatatanServiks> catatanList = listData
+            .map((item) => CatatanServiks.fromMap(item as Map<String, dynamic>))
+            .toList();
+
+        catatanList.sort(
+              (a, b) => a.jamPemeriksaan.compareTo(b.jamPemeriksaan),
+        );
+
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => PartografView(dataPemeriksaan: catatanList),
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                "Field 'pembukaan_serviks' tidak ditemukan atau formatnya salah.",
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) Navigator.of(context).pop();
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Gagal mengambil data: $e"), backgroundColor: Colors.red,));
+    }
+  }
+
+  void _navigateToGrafikKontraksi() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => KontraksiGraphScreen(
+          userId: widget.userId,
+          pasienId: widget.pasienId,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Pilih Partograf', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFFF8ABEB), Color(0xFFEEF1DD)],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+          ),
+        ),
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _buildOptionCard(
+              icon: Icons.show_chart,
+              title: 'Pembukaan Serviks',
+              subtitle: 'Grafik kemajuan pembukaan dan penurunan serviks.',
+              onTap: _navigateToGrafikServiks,
+              color: Colors.pink,
+            ),
+            const SizedBox(height: 20),
+            _buildOptionCard(
+              icon: Icons.waves,
+              title: 'Kontraksi Uterus',
+              subtitle: 'Grafik frekuensi dan durasi kontraksi per 10 menit.',
+              onTap: _navigateToGrafikKontraksi,
+              color: Colors.teal,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOptionCard({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+    required Color color,
+  }) {
+    return Card(
+      elevation: 5,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(15),
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 30,
+                backgroundColor: color.withOpacity(0.1),
+                child: Icon(icon, size: 30, color: color),
+              ),
+              const SizedBox(width: 20),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      subtitle,
+                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: Colors.grey),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
