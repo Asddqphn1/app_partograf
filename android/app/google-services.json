@@ -14,11 +14,87 @@
       },
       "oauth_client": [
         {
+          "client_id": "614365068749-7a9t3o67o9f0rt267g2g289cv8gjehhk.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.partograf",
+            "certificate_hash": "a16a7d9a0f236a865e7647af094c8886986c8d6c"
+          }
+        },
+        {
           "client_id": "614365068749-99i0fvnbgebip1imd8reqb7dsntg4vu8.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.example.partograf",
             "certificate_hash": "58a6a28642534654c534736ad4ba90fd081fa225"
+          }
+        },
+        {
+          "client_id": "614365068749-5qvuokf5o05j88qrmnkjntdavp13m2k2.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDku8KppZHqBuoGMBX1SxoMDk5fSt5tvEY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "614365068749-5qvuokf5o05j88qrmnkjntdavp13m2k2.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "614365068749-buothl8uidg0uor058dcrgt7so1u7un4.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.partograf"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:614365068749:android:08ff3f93afbe76f030d884",
+        "android_client_info": {
+          "package_name": "id.strata.partograf"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "614365068749-6s8k7vaoerivha8p94h7b1019d0db143.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "id.strata.partograf",
+            "certificate_hash": "a16a7d9a0f236a865e7647af094c8886986c8d6c"
+          }
+        },
+        {
+          "client_id": "614365068749-ql7r3hvnafr7qrf2bj1d66lhg2oiavms.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "id.strata.partograf",
+            "certificate_hash": "58a6a28642534654c534736ad4ba90fd081fa225"
+          }
+        },
+        {
+          "client_id": "614365068749-scbc2a4ch2eeu2gm1pjvo9ro0rf4ju9l.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "id.strata.partograf",
+            "certificate_hash": "15162ee7636acc0c163f06e548b47fccf89dc14d"
+          }
+        },
+        {
+          "client_id": "614365068749-vp3otokiub0oea2hjromut38e9kc6bg6.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "id.strata.partograf",
+            "certificate_hash": "3d5953497dfeda94bd464b776cf084aa1d9f46e2"
           }
         },
         {

@@ -69,7 +69,7 @@ class DetailPasien extends StatelessWidget {
                   destinationPage = KemajuanPersalinan(userId: userId, pasienId: pasienId);
                   break;
                 case 'Kondisi Ibu':
-                  destinationPage = const KondisiIbu();
+                  destinationPage = KondisiIbu(idUser: userId, pasien: pasienId,);
                   break;
                 case 'Kondisi Janin':
                   destinationPage = const KondisiJanin();

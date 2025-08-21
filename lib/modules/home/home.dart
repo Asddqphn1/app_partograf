@@ -10,6 +10,7 @@ import 'package:partograf/modules/pasien/input_pasien.dart';
 import 'package:partograf/modules/pasien/partograft_pasien/grapic.dart';
 import 'package:partograf/modules/pasien/partograft_pasien/kontraksi_graph.dart';
 
+import '../pasien/partograft_pasien/kondisi_ibu_graph.dart';
 
 class Home extends StatefulWidget {
   final String user;
@@ -25,16 +26,11 @@ class _HomeState extends State<Home> {
   int _selectedIndex = 0;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
-
-  // ==========================================================
-  // ===== PERBAIKAN 2: Future untuk data user diinisialisasi di sini =====
-  // ==========================================================
   late Future<DocumentSnapshot> _userFuture;
 
   @override
   void initState() {
     super.initState();
-    // Data user hanya akan diambil satu kali saat widget pertama kali dibuat.
     _userFuture = widget.firestore.collection('user').doc(widget.user).get();
 
     _searchController.addListener(() {
@@ -70,8 +66,6 @@ class _HomeState extends State<Home> {
 
   @override
   Widget build(BuildContext context) {
-    // FutureBuilder sekarang menggunakan _userFuture yang sudah diinisialisasi.
-    // Ini mencegah pengambilan data ulang setiap kali setState dipanggil.
     return FutureBuilder<DocumentSnapshot>(
       future: _userFuture,
       builder:
@@ -121,11 +115,7 @@ class _HomeState extends State<Home> {
                 _buildHeader(userName, userEmail, context),
               ],
             ),
-            // ==========================================================
-            // ===== PERBAIKAN 1: FloatingActionButton dihapus =====
-            // ==========================================================
             bottomNavigationBar: BottomAppBar(
-              // shape dan notchMargin dihapus
               child: SizedBox(
                 height: 60,
                 child: Row(
@@ -133,7 +123,6 @@ class _HomeState extends State<Home> {
                   children: <Widget>[
                     _buildNavItem(
                         icon: Icons.home, label: 'Home', index: 0),
-                    // Tombol tambah pasien yang baru ditambahkan di sini
                     _buildAddPatientButton(),
                     _buildNavItem(
                         icon: Icons.graphic_eq, label: 'Partograf', index: 1),
@@ -151,9 +140,6 @@ class _HomeState extends State<Home> {
     );
   }
 
-  // ==========================================================
-  // ===== WIDGET BARU UNTUK TOMBOL TAMBAH PASIEN =====
-  // ==========================================================
   Widget _buildAddPatientButton() {
     return InkWell(
       onTap: () {
@@ -679,6 +665,19 @@ class _PilihGrafikScreenState extends State<PilihGrafikScreen> {
     );
   }
 
+  // --- 2. BUAT FUNGSI NAVIGASI BARU ---
+  void _navigateToGrafikKondisiIbu() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => KondisiIbuGraphScreen(
+          userId: widget.userId,
+          pasienId: widget.pasienId,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -701,7 +700,7 @@ class _PilihGrafikScreenState extends State<PilihGrafikScreen> {
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
+        child: Column( // Menggunakan Column agar bisa menampung 3 item
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             _buildOptionCard(
@@ -718,6 +717,15 @@ class _PilihGrafikScreenState extends State<PilihGrafikScreen> {
               subtitle: 'Grafik frekuensi dan durasi kontraksi per 10 menit.',
               onTap: _navigateToGrafikKontraksi,
               color: Colors.teal,
+            ),
+            // --- 3. TAMBAHKAN KARTU OPSI BARU ---
+            const SizedBox(height: 20),
+            _buildOptionCard(
+              icon: Icons.monitor_heart, // Icon yang relevan
+              title: 'Kondisi Ibu',
+              subtitle: 'Grafik nadi dan tekanan darah ibu.',
+              onTap: _navigateToGrafikKondisiIbu, // Panggil fungsi baru
+              color: Colors.blue, // Warna yang berbeda
             ),
           ],
         ),
