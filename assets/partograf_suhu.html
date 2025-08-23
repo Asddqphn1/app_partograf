@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Catatan Suhu Ibu</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 20px 10px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            background-color: #f7faff;
+            overflow-x: auto;
+            overflow-y: hidden;
+            -webkit-overflow-scrolling: touch; /* Scroll lebih mulus di iOS */
+        }
+
+        #partograf-container {
+            display: flex;
+            flex-direction: row;
+            align-items: flex-start;
+        }
+
+        /* Label "Suhu °C" di sisi kiri */
+        .header-label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 52px; /* Sama dengan tinggi kotak + border */
+            padding-right: 10px;
+            font-weight: bold;
+            color: #333;
+            white-space: nowrap;
+        }
+
+        #data-grid {
+            display: flex;
+            flex-direction: row;
+            border-left: 1px solid #888; /* Garis awal grid */
+        }
+
+        .time-slot {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .suhu-box {
+            width: 45px;
+            height: 50px;
+            border-right: 1px solid #888;
+            border-top: 1px solid #888;
+            border-bottom: 1px solid #888;
+            background-color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 14px;
+            font-weight: bold;
+            color: #c2185b; /* Warna pink gelap agar kontras */
+        }
+
+        .jam-label {
+            margin-top: 8px;
+            font-size: 12px;
+            color: #555;
+            width: 46px; /* Lebar sama dengan kotak */
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+<div id="partograf-container">
+    <div class="header-label">Suhu °C</div>
+    <div id="data-grid"></div>
+</div>
+
+<script>
+    // DATA DARI FLUTTER DIINJEKSI DI SINI
+    const flutterData = __DATA_PLACEHOLDER__;
+
+    const gridContainer = document.getElementById('data-grid');
+
+    // Urutkan data berdasarkan waktu
+    flutterData.sort((a, b) => a.jam_pemeriksaan - b.jam_pemeriksaan);
+
+    // Tentukan waktu awal partograf
+    let startTime;
+    if (flutterData.length > 0) {
+        const firstDataTime = new Date(flutterData[0].jam_pemeriksaan);
+        // Bulatkan ke jam terdekat ke bawah
+        startTime = new Date(firstDataTime.getFullYear(), firstDataTime.getMonth(), firstDataTime.getDate(), firstDataTime.getHours());
+    } else {
+        // Jika tidak ada data, mulai dari jam saat ini, dibulatkan ke bawah
+        const now = new Date();
+        startTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours());
+    }
+
+    // Loop untuk membuat 32 slot waktu (16 jam, per 30 menit)
+    for (let i = 0; i < 32; i++) {
+        const slotStartTime = new Date(startTime.getTime() + i * 30 * 60 * 1000);
+        const slotEndTime = new Date(startTime.getTime() + (i + 1) * 30 * 60 * 1000);
+
+        // Cari data yang cocok untuk slot waktu ini
+        const dataInSlot = flutterData.find(item => {
+            const itemTime = item.jam_pemeriksaan;
+            return itemTime >= slotStartTime.getTime() && itemTime < slotEndTime.getTime();
+        });
+
+        // Buat elemen HTML
+        const timeSlot = document.createElement('div');
+        timeSlot.className = 'time-slot';
+
+        const suhuBox = document.createElement('div');
+        suhuBox.className = 'suhu-box';
+        // Isi nilai suhu jika ada data, jika tidak biarkan kosong
+        suhuBox.textContent = dataInSlot ? dataInSlot.suhu.toFixed(1) : '';
+
+        const jamLabel = document.createElement('div');
+        jamLabel.className = 'jam-label';
+
+        // Tampilkan label jam hanya untuk setiap jam (kelipatan 2 slot)
+        if (i % 2 === 0) {
+            const hours = String(slotStartTime.getHours()).padStart(2, '0');
+            jamLabel.textContent = `${hours}:00`;
+        } else {
+            jamLabel.textContent = ''; // Kosongkan untuk slot 30 menit
+        }
+
+        // Gabungkan elemen
+        timeSlot.appendChild(suhuBox);
+        timeSlot.appendChild(jamLabel);
+        gridContainer.appendChild(timeSlot);
+    }
+</script>
+</body>
+</html>
