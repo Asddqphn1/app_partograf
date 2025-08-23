@@ -69,9 +69,9 @@ class _InputUrineState extends State<InputUrine> {
       };
 
       try {
-        await widget.docRef.update({
+        await widget.docRef.set({
           'urine': FieldValue.arrayUnion([newUrineData]),
-        });
+        }, SetOptions(merge: true));
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Data Urine berhasil disimpan!')),

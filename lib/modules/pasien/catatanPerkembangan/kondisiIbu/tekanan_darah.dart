@@ -68,9 +68,9 @@ class _InputTdState extends State<InputTd> {
       };
 
       try {
-        await widget.docRef.update({
+        await widget.docRef.set({
           'tekanan_darah': FieldValue.arrayUnion([newTDData]),
-        });
+        }, SetOptions(merge: true));
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(

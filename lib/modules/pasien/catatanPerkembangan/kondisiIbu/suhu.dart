@@ -63,9 +63,9 @@ class _InputSuhuState extends State<InputSuhu> {
       };
 
       try {
-        await widget.docRef.update({
+        await widget.docRef.set({
           'suhu': FieldValue.arrayUnion([newSuhuData]),
-        });
+        }, SetOptions(merge: true));
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Data Suhu berhasil disimpan!')),
