@@ -9,6 +9,7 @@ import 'package:partograf/modules/pasien/detail_pasien.dart';
 import 'package:partograf/modules/pasien/input_pasien.dart';
 import 'package:partograf/modules/pasien/partograft_pasien/grapic.dart';
 import 'package:partograf/modules/pasien/partograft_pasien/kontraksi_graph.dart';
+import 'package:partograf/modules/pasien/partograft_pasien/suhu_graph_screen.dart'; // <-- IMPORT INI
 
 import '../pasien/partograft_pasien/kondisi_ibu_graph.dart';
 
@@ -678,6 +679,18 @@ class _PilihGrafikScreenState extends State<PilihGrafikScreen> {
     );
   }
 
+  void _navigateToGrafikSuhu() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SuhuGraphScreen(
+          userId: widget.userId,
+          pasienId: widget.pasienId,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -726,6 +739,14 @@ class _PilihGrafikScreenState extends State<PilihGrafikScreen> {
               subtitle: 'Grafik nadi dan tekanan darah ibu.',
               onTap: _navigateToGrafikKondisiIbu, // Panggil fungsi baru
               color: Colors.blue, // Warna yang berbeda
+            ),
+            const SizedBox(height: 20),
+            _buildOptionCard(
+              icon: Icons.thermostat, // Icon yang relevan
+              title: 'Suhu Tubuh Ibu',
+              subtitle: 'Grafik pemantauan suhu tubuh ibu.',
+              onTap: _navigateToGrafikSuhu, // Panggil fungsi baru
+              color: Colors.orange, // Warna yang berbeda
             ),
           ],
         ),
