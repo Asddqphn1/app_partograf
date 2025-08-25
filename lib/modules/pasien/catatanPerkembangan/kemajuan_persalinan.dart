@@ -646,7 +646,7 @@ class _TambahKontraksiScreenState extends State<TambahKontraksiScreen> {
 
     try {
       final pasienDoc = await pasienRef.get();
-      final pasienData = pasienDoc.data() as Map<String, dynamic>?;
+      final pasienData = pasienDoc.data();
       String? kemajuanId = pasienData?['kemajuan_id'];
 
       if (kemajuanId == null) {
@@ -836,7 +836,7 @@ class _TambahCatatanScreenState extends State<TambahCatatanScreen> {
 
       try {
         final pasienDoc = await pasienRef.get();
-        final pasienData = pasienDoc.data() as Map<String, dynamic>?;
+        final pasienData = pasienDoc.data();
         String? kemajuanId = pasienData?['kemajuan_id'];
 
         if (kemajuanId == null) {

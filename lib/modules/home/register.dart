@@ -44,10 +44,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     try {
       // Membuat user baru dengan email dan password di Firebase Auth
-      UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
-        email: emailController.text.trim(),
-        password: passwordController.text.trim(),
-      );
+      UserCredential userCredential = await _auth
+          .createUserWithEmailAndPassword(
+            email: emailController.text.trim(),
+            password: passwordController.text.trim(),
+          );
 
       // Mengirim email verifikasi
       await userCredential.user!.sendEmailVerification();

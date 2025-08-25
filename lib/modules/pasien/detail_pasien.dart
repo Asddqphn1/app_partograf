@@ -1,26 +1,43 @@
 import 'package:flutter/material.dart';
 import 'package:partograf/modules/home/home.dart';
 import 'package:partograf/modules/pasien/catatanPerkembangan/kemajuan_persalinan.dart';
-import 'package:partograf/modules/pasien/catatanPerkembangan/kondisi_ibu.dart';
 import 'package:partograf/modules/pasien/catatanPerkembangan/kondisi_janin.dart';
-import 'package:partograf/modules/pasien/catatanPerkembangan/obat_dan_cairan.dart';
-import 'package:partograf/modules/pasien/catatanPerkembangan/pemantauan_kala_IV.dart';
+import 'package:partograf/modules/pasien/catatanPerkembangan/obatDanCairan/obat_dan_cairan.dart';
+import 'package:partograf/modules/pasien/catatanPerkembangan/pemantauanKalaIV/pemantauan_kala_IV.dart';
 
 class DetailPasien extends StatelessWidget {
-  final String pasienId;
-  final String userId;
-
-  const DetailPasien({super.key, required this.pasienId, required this.userId});
+  String pasienId;
+  String userId;
+  DetailPasien({super.key, required this.pasienId, required this.userId});
 
   @override
   Widget build(BuildContext context) {
-    // Data untuk setiap item menu
     final List<Map<String, dynamic>> menuItems = [
-      {'title': 'Kemajuan Persalinan', 'icon': Icons.trending_up, 'color': Colors.blue},
-      {'title': 'Kondisi Ibu', 'icon': Icons.pregnant_woman, 'color': Colors.pink},
-      {'title': 'Kondisi Janin', 'icon': Icons.child_care, 'color': Colors.green},
-      {'title': 'Obat dan Cairan', 'icon': Icons.medical_services, 'color': Colors.orange},
-      {'title': 'Pemantauan Kala IV', 'icon': Icons.watch_later, 'color': Colors.purple},
+      {
+        'title': 'Kemajuan Persalinan',
+        'icon': Icons.trending_up,
+        'color': Colors.blue,
+      },
+      {
+        'title': 'Kondisi Ibu',
+        'icon': Icons.pregnant_woman,
+        'color': Colors.pink,
+      },
+      {
+        'title': 'Kondisi Janin',
+        'icon': Icons.child_care,
+        'color': Colors.green,
+      },
+      {
+        'title': 'Obat dan Cairan',
+        'icon': Icons.medical_services,
+        'color': Colors.orange,
+      },
+      {
+        'title': 'Pemantauan Kala IV',
+        'icon': Icons.watch_later,
+        'color': Colors.purple,
+      },
     ];
 
     return Scaffold(
@@ -33,7 +50,10 @@ class DetailPasien extends StatelessWidget {
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF8E44AD), Color(0xFFF8ABEB)], // Gradient ungu ke pink
+              colors: [
+                Color(0xFF8E44AD),
+                Color(0xFFF8ABEB),
+              ], // Gradient ungu ke pink
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -66,19 +86,25 @@ class DetailPasien extends StatelessWidget {
 
               switch (title) {
                 case 'Kemajuan Persalinan':
-                  destinationPage = KemajuanPersalinan(userId: userId, pasienId: pasienId);
-                  break;
-                case 'Kondisi Ibu':
-                  destinationPage = KondisiIbu(idUser: userId, pasien: pasienId,);
+                  destinationPage = KemajuanPersalinan(
+                    userId: userId,
+                    pasienId: pasienId,
+                  );
                   break;
                 case 'Kondisi Janin':
                   destinationPage = const KondisiJanin();
                   break;
                 case 'Obat dan Cairan':
-                  destinationPage = const ObatDanCairan();
+                  destinationPage =  ObatDanCairan(
+                    userId: userId,
+                    pasienId: pasienId,
+                  );
                   break;
                 case 'Pemantauan Kala IV':
-                  destinationPage = const PemantauanKalaIv();
+                  destinationPage = PemantauanKalaIv(
+                    userId: userId,
+                    pasienId: pasienId,
+                  );
                   break;
                 default:
                   destinationPage = Home(user: userId);
