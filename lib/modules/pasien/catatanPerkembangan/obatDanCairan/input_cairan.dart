@@ -68,9 +68,9 @@ class _InputCairanState extends State<InputCairan> {
       };
 
       try {
-        await widget.docRef.update({
+        await widget.docRef.set({
           'cairan': FieldValue.arrayUnion([newCairanData]),
-        });
+        }, SetOptions(merge: true));
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

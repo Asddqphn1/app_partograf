@@ -68,9 +68,9 @@ class _InputObatState extends State<InputObat> {
       };
 
       try {
-        await widget.docRef.update({
+        await widget.docRef.set({
           'obat': FieldValue.arrayUnion([newObatData]),
-        });
+        }, SetOptions(merge: true));
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

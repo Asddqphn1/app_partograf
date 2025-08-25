@@ -89,9 +89,9 @@ class _InputKalaIvState extends State<InputKalaIv> {
       };
 
       try {
-        await widget.docRef.update({
+        await widget.docRef.set({
           'kala_IV': FieldValue.arrayUnion([newKalaIVEntry]),
-        });
+        }, SetOptions(merge: true));
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

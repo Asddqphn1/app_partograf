@@ -8,9 +8,9 @@ import 'input_obat.dart';
 import 'input_cairan.dart';
 
 class ObatDanCairan extends StatefulWidget {
-  String userId;
-  String pasienId;
-  ObatDanCairan({super.key, required this.userId, required this.pasienId});
+  final String userId;
+  final String pasienId;
+  const ObatDanCairan({super.key, required this.userId, required this.pasienId});
 
   @override
   State<ObatDanCairan> createState() => _ObatDanCairanState();
@@ -135,7 +135,7 @@ class _ObatDanCairanState extends State<ObatDanCairan> with SingleTickerProvider
           return Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: 24.0,
-              vertical: 12.0,
+              vertical: 8.0,
             ),
             child: ElevatedButton.icon(
               onPressed: _navigateToInputPage,

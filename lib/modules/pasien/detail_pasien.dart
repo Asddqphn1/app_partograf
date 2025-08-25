@@ -5,6 +5,8 @@ import 'package:partograf/modules/pasien/catatanPerkembangan/kondisi_janin.dart'
 import 'package:partograf/modules/pasien/catatanPerkembangan/obatDanCairan/obat_dan_cairan.dart';
 import 'package:partograf/modules/pasien/catatanPerkembangan/pemantauanKalaIV/pemantauan_kala_IV.dart';
 
+import 'catatanPerkembangan/kondisi_ibu.dart';
+
 class DetailPasien extends StatelessWidget {
   String pasienId;
   String userId;
@@ -93,6 +95,12 @@ class DetailPasien extends StatelessWidget {
                   break;
                 case 'Kondisi Janin':
                   destinationPage = const KondisiJanin();
+                  break;
+                case 'Kondisi Ibu':
+                  destinationPage = KondisiIbu(
+                    idUser: userId,
+                    pasien: pasienId,
+                  );
                   break;
                 case 'Obat dan Cairan':
                   destinationPage =  ObatDanCairan(
