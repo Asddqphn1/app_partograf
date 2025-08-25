@@ -8,23 +8,24 @@ import 'input_obat.dart';
 import 'input_cairan.dart';
 
 class ObatDanCairan extends StatefulWidget {
-  const ObatDanCairan({super.key});
+  String userId;
+  String pasienId;
+  ObatDanCairan({super.key, required this.userId, required this.pasienId});
 
   @override
   State<ObatDanCairan> createState() => _ObatDanCairanState();
 }
 
-class _ObatDanCairanState extends State<ObatDanCairan>
-    with SingleTickerProviderStateMixin {
+class _ObatDanCairanState extends State<ObatDanCairan> with SingleTickerProviderStateMixin {
   late final TabController _tabController;
 
-  final DocumentReference obatDanCairanDoc = FirebaseFirestore.instance
+  late final DocumentReference obatDanCairanDoc = FirebaseFirestore.instance
       .collection("user")
-      .doc("QfAsyIkRTFuvNSy5YRaH")
+      .doc(widget.userId)
       .collection("pasien")
-      .doc('vJ0Wm7xmhr0OAPQ4ehNA')
+      .doc(widget.pasienId)
       .collection("obat-cairan")
-      .doc('z2vMj0CivJ1sgG9j85XT');
+      .doc('obat-dan-cairan');
 
   @override
   void initState() {

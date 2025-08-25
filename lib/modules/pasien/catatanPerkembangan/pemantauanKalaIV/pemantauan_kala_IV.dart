@@ -4,19 +4,26 @@ import 'package:intl/intl.dart';
 import 'package:partograf/gradient_app_bar.dart';
 import 'package:partograf/modules/pasien/catatanPerkembangan/pemantauanKalaIV/input_kala_IV.dart';
 
-class PemantauanKalaIv extends StatelessWidget {
-  const PemantauanKalaIv({super.key});
+class PemantauanKalaIv extends StatefulWidget {
+  String userId;
+  String pasienId;
+  PemantauanKalaIv({super.key, required this.userId, required this.pasienId});
+
+  @override
+  State<PemantauanKalaIv> createState() => _PemantauanKalaIvState();
+}
+class _PemantauanKalaIvState extends State<PemantauanKalaIv> {
+  late final DocumentReference docRef = FirebaseFirestore.instance
+        .collection("user")
+        .doc(widget.userId)
+        .collection("pasien")
+        .doc(widget.pasienId)
+        .collection("pemantauan_kala_IV")
+        .doc('pemantauan-kala-IV');
+
 
   @override
   Widget build(BuildContext context) {
-    final DocumentReference docRef = FirebaseFirestore.instance
-        .collection("user")
-        .doc("QfAsyIkRTFuvNSy5YRaH")
-        .collection("pasien")
-        .doc('vJ0Wm7xmhr0OAPQ4ehNA')
-        .collection("pemantauan_kala_IV")
-        .doc('sQgI7A5AcbeL2OCf5wnM');
-
     return Scaffold(
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(80.0),

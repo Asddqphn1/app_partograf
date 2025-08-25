@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Medical Chart - Data Renderer</title>
+    <style>
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            overflow: hidden; font-family: sans-serif; background-color: #ffffff;
+            display: flex;
+        }
+        #symbolContainer {
+            display: flex; flex-direction: column; justify-content: space-around;
+            align-items: center; width: 90px; height: 100%; padding: 20px 0;
+            box-sizing: border-box; font-size: 14px; text-align: center; color: #333;
+            border-right: 1px solid #ccc;
+        }
+        .symbol-item { display: flex; flex-direction: column; align-items: center; }
+        .nadi-symbol {
+            font-size: 32px;
+            line-height: 0.5;
+            font-weight: bold;
+            color: blue;
+        }
+        .bp-symbol-container {
+            display: flex; flex-direction: column; align-items: center;
+            justify-content: center; height: 150px; position: relative;
+        }
+        .bp-arrow {
+            position: absolute; left: 50%; top: 10px; bottom: 10px;
+            width: 2px; background-color: red; transform: translateX(-50%);
+        }
+        .bp-arrow::before {
+            content: ''; position: absolute; left: 50%; top: -1px; transform: translateX(-50%);
+            border-left: 6px solid transparent; border-right: 6px solid transparent;
+            border-bottom: 9px solid red;
+        }
+        .bp-arrow::after {
+            content: ''; position: absolute; left: 50%; bottom: -1px; transform: translateX(-50%);
+            border-left: 6px solid transparent; border-right: 6px solid transparent;
+            border-top: 9px solid red;
+        }
+        #chartWrapper {
+            flex-grow: 1;
+            height: 100%;
+            overflow-x: auto;
+            overflow-y: hidden;
+            background-color: #f8f8f8;
+        }
+        #chartContainer {
+            width: 200vw;
+            height: 100%;
+            padding: 10px 0;
+        }
+    </style>
+</head>
+<body>
+<div id="symbolContainer">
+    <div class="symbol-item"><span class="nadi-symbol">•</span><span>Nadi</span></div>
+    <div class="bp-symbol-container"><div class="bp-arrow"></div><span>Tekanan<br>darah</span></div>
+</div>
+<div id="chartWrapper"><div id="chartContainer"><canvas id="medicalChart"></canvas></div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js"></script>
+
+<script>
+    const ctx = document.getElementById('medicalChart').getContext('2d');
+
+    // Plugin kustom untuk menggambar garis tekanan darah dengan panah yang lebih baik
+    const bloodPressureLinePlugin = {
+        id: 'bloodPressureLine',
+        afterDraw: (chart) => {
+            const ctx = chart.ctx;
+            chart.data.datasets.forEach((dataset, i) => {
+                if (dataset.isBloodPressure) {
+                    const meta = chart.getDatasetMeta(i);
+                    if (meta.data.length === 2) {
+                        // Pastikan kedua titik memiliki posisi x yang sama
+                        const xPos = meta.data[0].x;
+                        const y1 = meta.data[0].y;
+                        const y2 = meta.data[1].y;
+
+                        ctx.save();
+                        ctx.beginPath();
+                        ctx.lineWidth = 2;
+                        ctx.strokeStyle = dataset.borderColor || 'red';
+                        ctx.fillStyle = dataset.borderColor || 'red';
+
+                        // Gambar garis vertikal dengan posisi x yang sama
+                        ctx.moveTo(xPos, y1);
+                        ctx.lineTo(xPos, y2);
+                        ctx.stroke();
+
+                        // Gambar panah di ujung atas (sistolik)
+                        drawArrow(ctx, xPos, y1, true);
+                        // Gambar panah di ujung bawah (diastolik)
+                        drawArrow(ctx, xPos, y2, false);
+
+                        ctx.restore();
+                    }
+                }
+            });
+        }
+    };
+
+    // Fungsi untuk menggambar panah yang diisi (filled)
+    function drawArrow(ctx, x, y, isUp) {
+        const size = 6; // Ukuran kepala panah
+        ctx.beginPath();
+        if (isUp) {
+            ctx.moveTo(x, y);
+            ctx.lineTo(x - size, y + size);
+            ctx.lineTo(x + size, y + size);
+        } else {
+            ctx.moveTo(x, y);
+            ctx.lineTo(x - size, y - size);
+            ctx.lineTo(x + size, y - size);
+        }
+        ctx.closePath();
+        ctx.fill(); // Mengisi panah agar solid
+    }
+
+    const config = {
+        type: 'line',
+        data: {
+            labels: Array.from({ length: 32 }, (_, i) => `${i}:00`),
+            datasets: []
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    min: 60,
+                    max: 190,
+                    ticks: {
+                        stepSize: 10,
+                        padding: 5,
+                        font: {
+                            size: 12
+                        }
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.2)',
+                        lineWidth: 1
+                    },
+                    title: {
+                        display: false
+                    }
+                },
+                x: {
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.2)',
+                        lineWidth: 1
+                    },
+                    ticks: {
+                        display: true,
+                        maxRotation: 0,
+                        font: {
+                            size: 10
+                        }
+                    }
+                }
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    enabled: true,
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            if (context.parsed.y !== null) {
+                                label += context.parsed.y;
+                            }
+                            return label;
+                        }
+                    }
+                },
+                zoom: {
+                    pan: { enabled: true, mode: 'x' },
+                    zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' }
+                }
+            }
+        },
+        plugins: [bloodPressureLinePlugin, Chart.registry.plugins.get('zoom')]
+    };
+
+    const medicalChart = new Chart(ctx, config);
+
+
+
+    // FUNGSI UTAMA YANG DIPERBAIKI
+    function renderAllData(dataString) {
+        try {
+            const data = JSON.parse(dataString);
+            const newDatasets = [];
+            const newLabels = Array.from({ length: 32 }, (_, i) => `${i}:00`);
+
+            // Inisialisasi dataset untuk Nadi
+            const nadiDataset = {
+                label: 'Nadi',
+                data: [],
+                backgroundColor: 'blue',
+                borderColor: 'blue',
+                pointRadius: 5,
+                pointStyle: 'circle',
+                type: 'scatter'
+            };
+
+            if (data.length === 0) {
+                medicalChart.data.datasets = [];
+                medicalChart.update();
+                return;
+            }
+
+            // Proses setiap data point dari sumber data
+            data.forEach((item, index) => {
+                // 1. Proses Nadi
+                if (item.nadi) {
+                    nadiDataset.data.push({ x: index, y: item.nadi });
+                }
+
+                // 2. Proses Tekanan Darah
+                if (item.sistolik && item.diastolik) {
+                    newDatasets.push({
+                        label: `Tekanan Darah (${item.sistolik}/${item.diastolik})`,
+                        isBloodPressure: true,
+                        borderColor: 'red',
+                        data: [
+                            { x: index, y: item.sistolik },
+                            { x: index, y: item.diastolik }
+                        ],
+                        type: 'scatter',
+                        pointRadius: 0,
+                    });
+                }
+            });
+
+            // Tambahkan dataset nadi jika ada datanya
+            if (nadiDataset.data.length > 0) {
+                newDatasets.push(nadiDataset);
+            }
+
+            medicalChart.data.labels = newLabels;
+            medicalChart.data.datasets = newDatasets;
+            medicalChart.update();
+        } catch (e) {
+            console.error("Gagal memproses data grafik:", e);
+        }
+    }
+</script>
+</body>
+</html>

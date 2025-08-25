@@ -1,4 +1,4 @@
-import 'dart:async'; // Diperlukan untuk Timer
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -45,7 +45,6 @@ class CatatanServiks {
 
   Map<String, dynamic> toJson() {
     return {
-      // Menggunakan format ISO 8601 agar mudah dibaca oleh JavaScript
       'jam_pemeriksaan': jamPemeriksaan.toIso8601String(),
       'besar_pembukaan': besarPembukaan,
       'besar_penurunan': besarPenurunan,
@@ -83,7 +82,6 @@ class _KemajuanPersalinanState extends State<KemajuanPersalinan> with SingleTick
     super.dispose();
   }
 
-  // Navigasi ke layar tambah catatan serviks
   void _tambahCatatanServiks() {
     Navigator.push(
       context,
@@ -96,7 +94,6 @@ class _KemajuanPersalinanState extends State<KemajuanPersalinan> with SingleTick
     );
   }
 
-  // ===== FUNGSI BARU: Navigasi ke layar tambah kontraksi =====
   void _tambahCatatanKontraksi() {
     Navigator.push(
       context,
@@ -111,6 +108,7 @@ class _KemajuanPersalinanState extends State<KemajuanPersalinan> with SingleTick
 
   @override
   Widget build(BuildContext context) {
+    // ... (UI Scaffold, AppBar, TabBar tidak berubah)
     return Scaffold(
       appBar: AppBar(
         title: const Text('Kemajuan Persalinan', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
@@ -155,7 +153,6 @@ class _KemajuanPersalinanState extends State<KemajuanPersalinan> with SingleTick
               controller: _tabController,
               children: [
                 _buildPembukaanServiksTab(),
-                // ===== PERUBAHAN: Memanggil widget untuk tab kontraksi =====
                 _buildKontraksiUterusTab(),
               ],
             ),
@@ -165,8 +162,43 @@ class _KemajuanPersalinanState extends State<KemajuanPersalinan> with SingleTick
     );
   }
 
-  // ===== WIDGET BARU: Untuk membangun tab "Kontraksi Uterus" =====
+  // =======================================================================
+  // FUNGSI PENGELOMPOKAN DIGANTI TOTAL
+  // =======================================================================
+  List<List<CatatanKontraksi>> _groupContractionsDynamically(List<CatatanKontraksi> contractions) {
+    if (contractions.isEmpty) {
+      return [];
+    }
+
+    // Pastikan sudah terurut dari yang paling awal
+    contractions.sort((a, b) => a.jamMulai.compareTo(b.jamMulai));
+
+    List<List<CatatanKontraksi>> allGroups = [];
+    List<CatatanKontraksi> currentGroup = [contractions.first];
+
+    for (int i = 1; i < contractions.length; i++) {
+      final currentContraction = contractions[i];
+      final firstContractionInGroup = currentGroup.first;
+
+      // Jika kontraksi saat ini terjadi dalam 10 menit dari kontraksi PERTAMA di grup,
+      // maka masukkan ke grup yang sama.
+      if (currentContraction.jamMulai.difference(firstContractionInGroup.jamMulai).inMinutes < 10) {
+        currentGroup.add(currentContraction);
+      } else {
+        // Jika tidak, selesaikan grup lama dan mulai grup baru.
+        allGroups.add(currentGroup);
+        currentGroup = [currentContraction];
+      }
+    }
+
+    // Tambahkan grup terakhir yang belum dimasukkan
+    allGroups.add(currentGroup);
+
+    return allGroups;
+  }
+
   Widget _buildKontraksiUterusTab() {
+    // ... (StreamBuilder untuk mengambil data tidak berubah)
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance
           .collection('user')
@@ -241,10 +273,11 @@ class _KemajuanPersalinanState extends State<KemajuanPersalinan> with SingleTick
                 .map((item) => CatatanKontraksi.fromMap(item as Map<String, dynamic>))
                 .toList();
 
-            catatanList.sort((a, b) => b.jamMulai.compareTo(a.jamMulai));
+            // Panggil fungsi pengelompokan yang baru
+            final groupedData = _groupContractionsDynamically(catatanList);
 
             return _buildContentWithButton(
-              content: _buildKontraksiList(catatanList),
+              content: _buildGroupedKontraksiList(groupedData),
               onPressed: _tambahCatatanKontraksi,
               labelTombol: 'Catat Kontraksi',
             );
@@ -254,10 +287,8 @@ class _KemajuanPersalinanState extends State<KemajuanPersalinan> with SingleTick
     );
   }
 
+  // ... (_buildPembukaanServiksTab dan widget lainnya tidak berubah)
   Widget _buildPembukaanServiksTab() {
-
-    print("Mencoba membangun tab dengan User ID: ${widget.userId}");
-    print("Mencoba membangun tab dengan Pasien ID: ${widget.pasienId}");
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance
           .collection('user')
@@ -333,7 +364,6 @@ class _KemajuanPersalinanState extends State<KemajuanPersalinan> with SingleTick
     );
   }
 
-  // ===== PERUBAHAN: Helper ini dibuat lebih umum =====
   Widget _buildContentWithButton({
     required Widget content,
     required VoidCallback onPressed,
@@ -343,15 +373,18 @@ class _KemajuanPersalinanState extends State<KemajuanPersalinan> with SingleTick
       children: [
         Expanded(child: content),
         Padding(
-          padding: const EdgeInsets.only(bottom: 24.0, top: 10.0),
-          child: ElevatedButton.icon(
-            onPressed: onPressed,
-            icon: const Icon(Icons.add, color: Colors.white),
-            label: Text(labelTombol, style: const TextStyle(color: Colors.white)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFF8ABEB),
-              padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 40),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          padding: const EdgeInsets.only(bottom: 48.0, top: 10.0, left: 20.0, right: 20.0),
+          child: SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: onPressed,
+              icon: const Icon(Icons.add, color: Colors.white),
+              label: Text(labelTombol, style: const TextStyle(color: Colors.white, fontSize: 16)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFF8ABEB),
+                padding: const EdgeInsets.symmetric(vertical: 15),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
             ),
           ),
         ),
@@ -359,8 +392,6 @@ class _KemajuanPersalinanState extends State<KemajuanPersalinan> with SingleTick
     );
   }
 
-
-  // ===== PERUBAHAN: Empty state dibuat lebih umum =====
   Widget _buildEmptyState({
     String pesan = 'Belum ada catatan',
     String deskripsi = 'Tekan tombol di bawah untuk menambah\ncatatan kemajuan persalinan pertama.',
@@ -379,7 +410,6 @@ class _KemajuanPersalinanState extends State<KemajuanPersalinan> with SingleTick
     );
   }
 
-  // Menampilkan daftar catatan serviks
   Widget _buildServiksList(List<CatatanServiks> catatanList) {
     return ListView.builder(
       padding: const EdgeInsets.all(16.0),
@@ -391,19 +421,28 @@ class _KemajuanPersalinanState extends State<KemajuanPersalinan> with SingleTick
     );
   }
 
-  // ===== WIDGET BARU: Menampilkan daftar catatan kontraksi =====
-  Widget _buildKontraksiList(List<CatatanKontraksi> catatanList) {
+  // Widget ini sekarang menerima List<List<CatatanKontraksi>>
+  Widget _buildGroupedKontraksiList(List<List<CatatanKontraksi>> groupedData) {
+    // Balik urutan agar grup terbaru muncul di atas
+    final reversedGroups = groupedData.reversed.toList();
+
+    if (reversedGroups.isEmpty) {
+      return _buildEmptyState(
+        pesan: 'Belum ada catatan kontraksi',
+        deskripsi: 'Tekan tombol di bawah untuk menambah\ncatatan kontraksi pertama.',
+      );
+    }
+
     return ListView.builder(
       padding: const EdgeInsets.all(16.0),
-      itemCount: catatanList.length,
+      itemCount: reversedGroups.length,
       itemBuilder: (context, index) {
-        final catatan = catatanList[index];
-        return _buildKontraksiCard(catatan, catatanList.length - index);
+        final group = reversedGroups[index];
+        return _buildKontraksiGroupCard(group);
       },
     );
   }
 
-  // Kartu untuk menampilkan satu data catatan serviks
   Widget _buildServiksCard(CatatanServiks catatan, int nomorPemeriksaan) {
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -428,13 +467,27 @@ class _KemajuanPersalinanState extends State<KemajuanPersalinan> with SingleTick
     );
   }
 
-  // ===== WIDGET BARU: Kartu untuk menampilkan satu data kontraksi =====
-  Widget _buildKontraksiCard(CatatanKontraksi catatan, int nomorKontraksi) {
+  // Widget ini sekarang menerima List<CatatanKontraksi>
+  Widget _buildKontraksiGroupCard(List<CatatanKontraksi> contractions) {
+    final count = contractions.length;
+    final totalDurationSeconds = contractions.fold<int>(0, (sum, item) => sum + item.durasi.inSeconds);
+    final averageDuration = totalDurationSeconds > 0 ? Duration(seconds: totalDurationSeconds ~/ count) : Duration.zero;
+
+    // =======================================================================
+    // LABEL INTERVAL SEKARANG DINAMIS
+    // =======================================================================
+    final intervalStart = contractions.first.jamMulai; // Ambil waktu mulai dari kontraksi pertama
+    final intervalEnd = intervalStart.add(const Duration(minutes: 10)); // Tambah 10 menit
+    final timeFormat = DateFormat('HH:mm');
+    final intervalString = '${timeFormat.format(intervalStart)} - ${timeFormat.format(intervalEnd)}';
+    final dateFormat = DateFormat('d MMM yyyy');
+
     String formatDuration(Duration d) {
       String twoDigits(int n) => n.toString().padLeft(2, '0');
-      String twoDigitMinutes = twoDigits(d.inMinutes.remainder(60));
-      String twoDigitSeconds = twoDigits(d.inSeconds.remainder(60));
-      return "$twoDigitMinutes menit $twoDigitSeconds detik";
+      if (d.inMinutes > 0) {
+        return '${d.inMinutes.remainder(60)} mnt ${twoDigits(d.inSeconds.remainder(60))} dtk';
+      }
+      return '${d.inSeconds} dtk';
     }
 
     return Card(
@@ -442,33 +495,62 @@ class _KemajuanPersalinanState extends State<KemajuanPersalinan> with SingleTick
       elevation: 4,
       shadowColor: Colors.teal.withOpacity(0.1),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
+      child: ExpansionTile(
+        tilePadding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Kontraksi Ke-$nomorKontraksi', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF004D40))),
-            const Divider(height: 20),
-            _buildInfoRow(
-              icon: Icons.play_circle_outline,
-              label: 'Jam Mulai',
-              value: DateFormat('d MMM yyyy, HH:mm:ss').format(catatan.jamMulai),
-              iconColor: Colors.blue,
+            Text(
+              intervalString,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF004D40)),
             ),
-            const SizedBox(height: 12),
-            _buildInfoRow(
-              icon: Icons.timer_outlined,
-              label: 'Lama Kontraksi',
-              value: formatDuration(catatan.durasi),
-              iconColor: Colors.green,
+            Text(
+              dateFormat.format(intervalStart),
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
             ),
           ],
         ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 10.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              _buildStatChip(
+                icon: Icons.repeat,
+                label: '$count kali',
+                color: Colors.blue,
+              ),
+              const SizedBox(width: 16),
+              _buildStatChip(
+                icon: Icons.timer_outlined,
+                label: 'Rata-rata: ${formatDuration(averageDuration)}',
+                color: Colors.green,
+              ),
+            ],
+          ),
+        ),
+        children: contractions.reversed.map((catatan) {
+          return ListTile(
+            leading: const Icon(Icons.waves, color: Colors.blueGrey),
+            title: Text('Durasi: ${formatDuration(catatan.durasi)}'),
+            subtitle: Text('Dimulai pukul: ${DateFormat('HH:mm:ss').format(catatan.jamMulai)}'),
+            dense: true,
+          );
+        }).toList(),
       ),
     );
   }
 
-  // Widget bantuan untuk membuat baris info yang konsisten
+  Widget _buildStatChip({required IconData icon, required String label, required Color color}) {
+    return Row(
+      children: [
+        Icon(icon, color: color, size: 16),
+        const SizedBox(width: 4),
+        Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+      ],
+    );
+  }
+
   Widget _buildInfoRow({required IconData icon, required String label, required String value, required Color iconColor}) {
     return Row(
       children: [
@@ -486,7 +568,7 @@ class _KemajuanPersalinanState extends State<KemajuanPersalinan> with SingleTick
   }
 }
 
-
+// ... (Class TambahKontraksiScreen dan TambahCatatanScreen tidak berubah)
 class TambahKontraksiScreen extends StatefulWidget {
   final String userId;
   final String pasienId;
@@ -558,7 +640,7 @@ class _TambahKontraksiScreenState extends State<TambahKontraksiScreen> {
 
     final pasienRef = FirebaseFirestore.instance
         .collection('user')
-        .doc(widget.userId) // Ganti dengan ID user yang sesuai
+        .doc(widget.userId)
         .collection('pasien')
         .doc(widget.pasienId);
 
@@ -658,6 +740,7 @@ class _TambahKontraksiScreenState extends State<TambahKontraksiScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _isRunning ? Colors.redAccent : Colors.green,
                     shape: const CircleBorder(),
+                    elevation: 8,
                   ),
                   child: Icon(
                     _isRunning ? Icons.stop : Icons.play_arrow,
@@ -680,8 +763,8 @@ class _TambahKontraksiScreenState extends State<TambahKontraksiScreen> {
                     ElevatedButton.icon(
                       icon: _isLoading
                           ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white,))
-                          : const Icon(Icons.save),
-                      label: Text(_isLoading ? 'Menyimpan...' : 'Simpan'),
+                          : const Icon(Icons.save, color: Colors.white),
+                      label: Text(_isLoading ? 'Menyimpan...' : 'Simpan', style: const TextStyle(color: Colors.white)),
                       onPressed: _isLoading ? null : _simpanData,
                       style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF8E44AD)),
                     ),
@@ -747,7 +830,7 @@ class _TambahCatatanScreenState extends State<TambahCatatanScreen> {
 
       final pasienRef = FirebaseFirestore.instance
           .collection('user')
-          .doc(widget.userId) // Ganti dengan ID user yang sesuai
+          .doc(widget.userId)
           .collection('pasien')
           .doc(widget.pasienId);
 

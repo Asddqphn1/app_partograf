@@ -3,7 +3,10 @@
 <head>
     <title>Partograf</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <!-- 1. Panggil library Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- 2. Panggil library plugin zoom & pan -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
     <style>
         body, html {
             margin: 0;
@@ -11,6 +14,7 @@
             width: 100%;
             height: 100%;
             overflow: auto;
+            background-color: #f8f9fa; /* Memberi sedikit warna latar */
         }
         #chartContainer {
             min-width: 800px;
@@ -20,186 +24,200 @@
     </style>
 </head>
 <body>
-    <div id="chartContainer">
-        <canvas id="partografChart"></canvas>
-    </div>
+<div id="chartContainer">
+    <canvas id="partografChart"></canvas>
+</div>
 
-    <script>
-        const ctx = document.getElementById('partografChart').getContext('2d');
+<script>
+    const ctx = document.getElementById('partografChart').getContext('2d');
 
-        // Garis Waspada (Alert Line)
-        const alertLine = [
-            {x: 0, y: 4}, {x: 1, y: 5}, {x: 2, y: 6}, {x: 3, y: 7},
-            {x: 4, y: 8}, {x: 5, y: 9}, {x: 6, y: 10}
-        ];
+    const alertLine = [ {x: 0, y: 4}, {x: 1, y: 5}, {x: 2, y: 6}, {x: 3, y: 7}, {x: 4, y: 8}, {x: 5, y: 9}, {x: 6, y: 10} ];
+    const actionLine = [ {x: 4, y: 4}, {x: 5, y: 5}, {x: 6, y: 6}, {x: 7, y: 7}, {x: 8, y: 8}, {x: 9, y: 9}, {x: 10, y: 10} ];
 
-        // Garis Bertindak (Action Line)
-        const actionLine = [
-            {x: 4, y: 4}, {x: 5, y: 5}, {x: 6, y: 6}, {x: 7, y: 7},
-            {x: 8, y: 8}, {x: 9, y: 9}, {x: 10, y: 10}
-        ];
-
-        const partografChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                datasets: [
-                    {
-                        label: 'Pembukaan Serviks (cm)',
-                        borderColor: 'purple',
-                        backgroundColor: 'purple',
-                        data: [],
-                        fill: false,
-                        pointRadius: 5,
-                        pointHoverRadius: 7,
-                        showLine: true,
-                        pointStyle: 'crossRot', // Menggunakan simbol 'X'
-                        borderWidth: 2
+    const partografChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            datasets: [
+                {
+                    label: 'Pembukaan Serviks (cm)',
+                    borderColor: 'purple',
+                    backgroundColor: 'purple',
+                    data: [],
+                    fill: false,
+                    pointRadius: 3,
+                    pointHoverRadius: 5,
+                    showLine: true,
+                    pointStyle: 'crossRot',
+                    borderWidth: 2
+                },
+                {
+                    label: 'Penurunan Kepala',
+                    borderColor: 'green',
+                    backgroundColor: 'green',
+                    data: [],
+                    fill: false,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    showLine: true,
+                    pointStyle: 'circle'
+                },
+                {
+                    label: 'Garis Waspada',
+                    borderColor: 'orange',
+                    backgroundColor: 'orange',
+                    data: alertLine,
+                    fill: false,
+                    pointRadius: 0,
+                    showLine: true
+                },
+                {
+                    label: 'Garis Bertindak',
+                    borderColor: 'red',
+                    backgroundColor: 'red',
+                    data: actionLine,
+                    fill: false,
+                    pointRadius: 0,
+                    showLine: true
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    type: 'linear',
+                    position: 'bottom',
+                    title: {
+                        display: true,
+                        text: 'Waktu Pemeriksaan (Jam Sejak Awal Fase Aktif)'
                     },
-                    {
-                        label: 'Penurunan Kepala',
-                        borderColor: 'green',
-                        backgroundColor: 'green',
-                        data: [],
-                        fill: false,
-                        pointRadius: 6,
-                        pointHoverRadius: 8,
-                        showLine: true,
-                        pointStyle: 'circle' // Menggunakan simbol 'O'
-                    },
-                    {
-                        label: 'Garis Waspada',
-                        borderColor: 'orange',
-                        backgroundColor: 'orange',
-                        data: alertLine,
-                        fill: false,
-                        pointRadius: 0,
-                        borderDash: [5, 5],
-                        showLine: true
-                    },
-                    {
-                        label: 'Garis Bertindak',
-                        borderColor: 'red',
-                        backgroundColor: 'red',
-                        data: actionLine,
-                        fill: false,
-                        pointRadius: 0,
-                        borderDash: [5, 5],
-                        showLine: true
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    x: {
-                        type: 'linear',
-                        position: 'bottom',
-                        title: {
-                            display: true,
-                            text: 'Waktu Pemeriksaan (Jam Sejak Awal Fase Aktif)'
-                        },
-                        min: 0,
-                        max: 16,
-                        ticks: {
-                            stepSize: 1,
-                            callback: function(value, index, values) {
+                    min: 0,
+                    max: 16,
+                    ticks: {
+                        stepSize: 0.5,
+                        callback: function(value, index, values) {
+                            if (value % 1 === 0) {
                                 if (window.chartLabels && window.chartLabels[value]) {
                                     return window.chartLabels[value];
                                 }
                                 return value;
                             }
+                            return '';
                         }
                     },
-                    y: {
-                        title: {
-                            display: true,
-                            text: 'Pembukaan (cm) / Penurunan'
-                        },
-                        min: 0,
-                        max: 10,
-                        ticks: {
-                            stepSize: 1
-                        },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.1)'
                     }
                 },
-                plugins: {
-                    tooltip: {
-                        callbacks: {
-                            title: function(context) {
-                                const xLabel = context[0].parsed.x.toFixed(2);
-                                return `Jam ke: ${xLabel}`;
-                            },
-                            label: function(context) {
-                                let label = context.dataset.label || '';
-                                if (label) {
-                                    label += ': ';
-                                }
-                                if (context.parsed.y !== null) {
-                                    label += `${context.parsed.y}`;
-                                    if (context.datasetIndex === 0) label += ' cm';
-                                }
-                                return label;
+                y: {
+                    title: {
+                        display: true,
+                        text: 'Pembukaan (cm) / Penurunan'
+                    },
+                    min: 0,
+                    max: 10,
+                    ticks: {
+                        stepSize: 0.5,
+                        // =======================================================================
+                        // INI YANG DIUBAH UNTUK MENYEMBUNYIKAN LABEL DESIMAL
+                        // =======================================================================
+                        callback: function(value, index, values) {
+                            if (value % 1 === 0) {
+                                return value; // Tampilkan hanya angka bulat
                             }
+                            return ''; // Sembunyikan label desimal (0.5, 1.5, dst.)
                         }
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.1)'
+                    }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        title: function(context) {
+                            const xLabel = context[0].parsed.x.toFixed(2);
+                            return `Jam ke: ${xLabel}`;
+                        },
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            if (context.parsed.y !== null) {
+                                label += `${context.parsed.y}`;
+                                if (context.datasetIndex === 0) label += ' cm';
+                            }
+                            return label;
+                        }
+                    }
+                },
+                zoom: {
+                    pan: {
+                        enabled: true,
+                        mode: 'xy'
+                    },
+                    zoom: {
+                        wheel: {
+                            enabled: true,
+                        },
+                        pinch: {
+                            enabled: true
+                        },
+                        mode: 'xy',
                     }
                 }
             }
-        });
-
-        // Fungsi ini akan dipanggil dari Flutter untuk update data
-        function updateChart(pembukaanData, penurunanData, labels) {
-            if (!pembukaanData || pembukaanData.length === 0) {
-                console.error("Data pembukaan kosong.");
-                return;
-            }
-            
-            pembukaanData.sort((a, b) => new Date(a.jam_pemeriksaan) - new Date(b.jam_pemeriksaan));
-            if (penurunanData && penurunanData.length > 0) {
-                penurunanData.sort((a, b) => new Date(a.jam_pemeriksaan) - new Date(b.jam_pemeriksaan));
-            }
-
-            // =======================================================================
-            //  PERBAIKAN LOGIKA: Menyelaraskan data dengan Garis Waspada
-            // =======================================================================
-            const firstDataPoint = pembukaanData[0];
-            const firstDilation = firstDataPoint.besar_pembukaan;
-            const firstTime = new Date(firstDataPoint.jam_pemeriksaan).getTime();
-
-            // Garis waspada dimulai pada 4cm di jam ke-0. Rumusnya: jam = pembukaan - 4.
-            // Ini menghitung pada jam ke berapa seharusnya pemeriksaan pertama terjadi.
-            let hoursOffset = 0;
-            if (firstDilation >= 4) { // Partograf fase aktif dimulai dari 4 cm
-                hoursOffset = firstDilation - 4;
-            }
-
-            // Hitung waktu "mulai" teoretis dengan mengurangi offset dari waktu pemeriksaan pertama.
-            const startTime = firstTime - (hoursOffset * 1000 * 60 * 60);
-
-            // Sekarang, semua data dihitung relatif terhadap startTime teoretis ini.
-            const pembukaanChartData = pembukaanData.map(item => ({
-                x: (new Date(item.jam_pemeriksaan).getTime() - startTime) / (1000 * 60 * 60),
-                y: item.besar_pembukaan
-            }));
-
-            const penurunanChartData = penurunanData.map(item => ({
-                x: (new Date(item.jam_pemeriksaan).getTime() - startTime) / (1000 * 60 * 60),
-                y: item.besar_penurunan
-            }));
-            
-            window.chartLabels = {};
-            if (labels && labels.length > 0) {
-                 labels.forEach(item => {
-                    const hourDiff = (new Date(item.jam).getTime() - startTime) / (1000 * 60 * 60);
-                    // Kita bulatkan agar labelnya pas di garis jam
-                    window.chartLabels[Math.round(hourDiff)] = item.label;
-                });
-            }
-            
-            partografChart.data.datasets[0].data = pembukaanChartData;
-            partografChart.data.datasets[1].data = penurunanChartData;
-            partografChart.update();
         }
-    </script>
+    });
+
+    // Fungsi updateChart tetap sama, tidak perlu diubah
+    function updateChart(pembukaanData, penurunanData, labels) {
+        if (!pembukaanData || pembukaanData.length === 0) {
+            console.error("Data pembukaan kosong.");
+            return;
+        }
+
+        pembukaanData.sort((a, b) => new Date(a.jam_pemeriksaan) - new Date(b.jam_pemeriksaan));
+        if (penurunanData && penurunanData.length > 0) {
+            penurunanData.sort((a, b) => new Date(a.jam_pemeriksaan) - new Date(b.jam_pemeriksaan));
+        }
+
+        const firstDataPoint = pembukaanData[0];
+        const firstDilation = firstDataPoint.besar_pembukaan;
+        const firstTime = new Date(firstDataPoint.jam_pemeriksaan).getTime();
+
+        let hoursOffset = 0;
+        if (firstDilation >= 4) {
+            hoursOffset = firstDilation - 4;
+        }
+
+        const startTime = firstTime - (hoursOffset * 1000 * 60 * 60);
+
+        const pembukaanChartData = pembukaanData.map(item => ({
+            x: (new Date(item.jam_pemeriksaan).getTime() - startTime) / (1000 * 60 * 60),
+            y: item.besar_pembukaan
+        }));
+
+        const penurunanChartData = penurunanData.map(item => ({
+            x: (new Date(item.jam_pemeriksaan).getTime() - startTime) / (1000 * 60 * 60),
+            y: item.besar_penurunan
+        }));
+
+        window.chartLabels = {};
+        if (labels && labels.length > 0) {
+             labels.forEach(item => {
+                const hourDiff = (new Date(item.jam).getTime() - startTime) / (1000 * 60 * 60);
+                window.chartLabels[Math.round(hourDiff)] = item.label;
+            });
+        }
+
+        partografChart.data.datasets[0].data = pembukaanChartData;
+        partografChart.data.datasets[1].data = penurunanChartData;
+        partografChart.update();
+    }
+</script>
 </body>
 </html>

@@ -16,8 +16,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   // Controller untuk input field
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
-  final TextEditingController nameController =
-      TextEditingController(); // Controller untuk nama
+  final TextEditingController nameController = TextEditingController();
 
   // Instance dari Firebase
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -25,15 +24,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   // State untuk menampilkan/menyembunyikan password
   bool _isPasswordVisible = false;
+  bool _isLoading = false;
 
   // Fungsi untuk proses registrasi
   void _handleRegister() async {
-    // Menampilkan loading indicator
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator()),
-    );
+    if (nameController.text.isEmpty || emailController.text.isEmpty || passwordController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Semua field harus diisi.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
 
     try {
       // Membuat user baru dengan email dan password di Firebase Auth
@@ -46,28 +53,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
       // Mengirim email verifikasi
       await userCredential.user!.sendEmailVerification();
 
-      // Menutup loading indicator
-      Navigator.of(context).pop();
-
-      // Menampilkan pesan bahwa email verifikasi telah dikirim
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Email verifikasi telah dikirim! Cek email Anda untuk mengaktifkan akun.',
-          ),
-          backgroundColor: Colors.green,
-        ),
-      );
-
+      // Menyimpan data user ke Firestore
       await _saveUserDataToFirestore(userCredential.user!);
 
-      // Mengarahkan pengguna untuk memeriksa email mereka
-      // Tidak menyimpan data ke Firestore sampai email diverifikasi
-    } on FirebaseAuthException catch (e) {
-      // Menutup loading indicator
-      Navigator.of(context).pop();
+      if (mounted) {
+        // Menampilkan pesan bahwa email verifikasi telah dikirim
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Email verifikasi telah dikirim! Cek email Anda.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        // Kembali ke halaman login setelah registrasi berhasil
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+              (route) => false,
+        );
+      }
 
-      // Menampilkan pesan error yang lebih jelas
+    } on FirebaseAuthException catch (e) {
       String errorMessage = 'Terjadi kesalahan.';
       if (e.code == 'weak-password') {
         errorMessage = 'Password yang dimasukkan terlalu lemah.';
@@ -76,71 +80,48 @@ class _RegisterScreenState extends State<RegisterScreen> {
       } else if (e.code == 'invalid-email') {
         errorMessage = 'Format email tidak valid.';
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } catch (e) {
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
   Future<void> _saveUserDataToFirestore(User user) async {
     try {
-      // Menyimpan data user ke Firestore setelah email diverifikasi
-      final docRef = FirebaseFirestore.instance
-          .collection('user')
-          .doc(user.uid);
-
-      // Cek apakah user sudah ada di Firestore
-      final doc = await docRef.get();
-      if (!doc.exists) {
-        // Jika data belum ada, simpan data baru
-        await docRef.set({
-          'email': user.email,
-          'nama': nameController.text.trim(),
-          'createdAt': Timestamp.now(),
-        });
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error menyimpan data ke Firestore: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
-  String _generateVerificationCode() {
-    // Membuat 4 digit angka acak
-    return (1000 + Random().nextInt(9000)).toString();
-  }
-
-  Future<void> _sendVerificationEmail(
-    User user,
-    String verificationCode,
-  ) async {
-    try {
-      // Kirim email verifikasi Firebase untuk akun
-      await user.sendEmailVerification();
-
-      // Simpan kode verifikasi di Firestore
-      await _firestore.collection('user').doc(user.uid).update({
-        'verificationCode': verificationCode,
+      await _firestore.collection('user').doc(user.uid).set({
+        'email': user.email,
+        'nama': nameController.text.trim(),
+        'createdAt': Timestamp.now(),
       });
-
-      // Anda bisa menambahkan pengiriman kode verifikasi lainnya (misalnya lewat sistem email lain).
     } catch (e) {
-      // Menangani error jika ada masalah saat mengirim verifikasi email
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error mengirim email verifikasi: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error menyimpan data: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -149,261 +130,223 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final size = MediaQuery.of(context).size;
 
     return Scaffold(
-      body: Stack(
-        children: [
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            height: size.height * 0.45,
-            child: Container(
-              color: const Color(0xFFF8C9F5),
-              child: Center(
-                child: Container(
-                  width: size.width * 0.45,
-                  height: size.width * 0.45,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEAFADE),
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: const Color(0xFFD6B5D5),
-                      width: 5,
+      // 2. Background diubah menjadi gradien
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFFF8ABEB), Color(0xFFEDFADC)],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: Stack(
+          children: [
+            // Bagian atas dengan gambar
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              height: size.height * 0.4,
+              child: Container(
+                color: Colors.transparent, // Dibuat transparan
+                child: Center(
+                  // 1. Ukuran circle dan gambar diperkecil
+                  child: Container(
+                    width: 180,
+                    height: 180,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEAFADE),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: const Color(0xFFD6B5D5),
+                        width: 5,
+                      ),
                     ),
-                  ),
-                  child: Center(
-                    child: Image.asset(
-                      'assets/images/bidan.png',
-                      height: size.width * 0.25,
-                      errorBuilder: (context, error, stackTrace) {
-                        return const Icon(
-                          Icons.error,
-                          size: 60,
-                          color: Colors.grey,
-                        );
-                      },
+                    child: Center(
+                      child: Image.asset(
+                        'assets/images/bidan.png',
+                        height: 150,
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) {
+                          return const Icon(Icons.error, size: 60, color: Colors.grey);
+                        },
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
-          Positioned(
-            top: size.height * 0.38,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: Container(
-              decoration: const BoxDecoration(
-                color: Color(0xFFF3F3E3),
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(40),
-                  topRight: Radius.circular(40),
-                ),
-              ),
+            // Bagian bawah dengan form
+            Positioned(
+              top: size.height * 0.32, // Posisi disesuaikan
+              left: 0,
+              right: 0,
+              bottom: 0,
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 40,
-                  vertical: 30,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Stack(
+                  alignment: Alignment.topCenter,
                   children: [
-                    const SizedBox(height: 20),
-                    const Center(
-                      child: Text(
-                        'Create New Account',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF2C2C6A),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 30),
-
-                    const Text(
-                      'Nama Bidan:',
-                      style: TextStyle(color: Colors.black54),
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: nameController,
-                      decoration: InputDecoration(
-                        filled: true,
-                        fillColor: Colors.white,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide.none,
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 14,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    const Text(
-                      'Email:',
-                      style: TextStyle(color: Colors.black54),
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      decoration: InputDecoration(
-                        filled: true,
-                        fillColor: Colors.white,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide.none,
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 14,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    const Text(
-                      'Password:',
-                      style: TextStyle(color: Colors.black54),
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: passwordController,
-                      obscureText: !_isPasswordVisible,
-                      decoration: InputDecoration(
-                        filled: true,
-                        fillColor: Colors.white,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide.none,
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 14,
-                        ),
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            _isPasswordVisible
-                                ? Icons.visibility
-                                : Icons.visibility_off,
-                            color: Colors.grey,
+                    // Kartu form utama
+                    Container(
+                      margin: const EdgeInsets.only(top: 35, left: 20, right: 20, bottom: 20),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 10,
+                            offset: const Offset(0, 5),
                           ),
-                          onPressed: () {
-                            setState(() {
-                              _isPasswordVisible = !_isPasswordVisible;
-                            });
-                          },
+                        ],
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 50, 20, 20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Nama Bidan:', style: TextStyle(color: Colors.black54)),
+                            const SizedBox(height: 8),
+                            TextField(
+                              controller: nameController,
+                              decoration: InputDecoration(
+                                filled: true,
+                                fillColor: Colors.white,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: const BorderSide(color: Colors.grey),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: const BorderSide(color: Colors.grey),
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            const Text('Email:', style: TextStyle(color: Colors.black54)),
+                            const SizedBox(height: 8),
+                            TextField(
+                              controller: emailController,
+                              keyboardType: TextInputType.emailAddress,
+                              decoration: InputDecoration(
+                                filled: true,
+                                fillColor: Colors.white,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: const BorderSide(color: Colors.grey),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: const BorderSide(color: Colors.grey),
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            const Text('Password:', style: TextStyle(color: Colors.black54)),
+                            const SizedBox(height: 8),
+                            TextField(
+                              controller: passwordController,
+                              obscureText: !_isPasswordVisible,
+                              decoration: InputDecoration(
+                                filled: true,
+                                fillColor: Colors.white,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: const BorderSide(color: Colors.grey),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: const BorderSide(color: Colors.grey),
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                suffixIcon: IconButton(
+                                  icon: Icon(
+                                    _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                                    color: Colors.grey,
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      _isPasswordVisible = !_isPasswordVisible;
+                                    });
+                                  },
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 40),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                onPressed: _isLoading ? null : _handleRegister,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF2C2C6A),
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                                child: _isLoading
+                                    ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                                    : const Text('Daftar', style: TextStyle(fontSize: 16)),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                    const SizedBox(height: 40),
-
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _handleRegister,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF2C2C6A),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
+                    // Kartu judul yang tumpang tindih
+                    Container(
+                      width: size.width * 0.7,
+                      padding: const EdgeInsets.symmetric(vertical: 20),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE5E7EB),
+                        borderRadius: BorderRadius.circular(15),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 10,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
+                      ),
+                      child: const Center(
+                        child: Text(
+                          'Create New Account',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF2C2C6A),
                           ),
                         ),
-                        child: const Text(
-                          'Daftar',
-                          style: TextStyle(fontSize: 16),
-                        ),
                       ),
                     ),
-                    const SizedBox(height: 20),
                   ],
                 ),
               ),
             ),
-          ),
-          Positioned(
-            top: 40,
-            left: 15,
-            child: IconButton(
-              icon: const Icon(
-                Icons.arrow_back_ios_new,
-                color: Color(0xFF2C2C6A),
+            // Tombol kembali
+            Positioned(
+              top: 40,
+              left: 15,
+              child: IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF2C2C6A)),
+                onPressed: () => Navigator.of(context).pop(),
               ),
-              onPressed: () => Navigator.of(context).pop(),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class VerificationDialog extends StatefulWidget {
-  final UserCredential userCredential;
-  final String verificationCode;
-
-  const VerificationDialog({
-    required this.userCredential,
-    required this.verificationCode,
-    super.key,
-  });
-
-  @override
-  _VerificationDialogState createState() => _VerificationDialogState();
-}
-
-class _VerificationDialogState extends State<VerificationDialog> {
-  final TextEditingController codeController = TextEditingController();
-
-  // Fungsi untuk memverifikasi kode
-  void _verifyCode() async {
-    if (codeController.text.trim() == widget.verificationCode) {
-      // Jika kode benar, arahkan ke halaman login
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Kode verifikasi berhasil!')),
-      );
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
-        (route) => false,
-      );
-    } else {
-      // Jika kode salah, tampilkan error
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Kode verifikasi salah!'),
-          backgroundColor: Colors.red,
+          ],
         ),
-      );
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Masukkan Kode Verifikasi'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(
-            controller: codeController,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
-              labelText: 'Kode Verifikasi',
-              border: OutlineInputBorder(),
-            ),
-          ),
-        ],
       ),
-      actions: [
-        TextButton(onPressed: _verifyCode, child: const Text('Verifikasi')),
-      ],
     );
   }
 }

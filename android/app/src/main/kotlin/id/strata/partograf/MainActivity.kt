@@ -1,4 +1,4 @@
-package com.example.partograf
+package id.strata.partograf
 
 import io.flutter.embedding.android.FlutterActivity
 
